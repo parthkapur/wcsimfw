@@ -1,0 +1,28 @@
+[project]
+name = "wcsimfw"
+version = "0.1.0"
+description = "World Cup simulation framework: strength -> score matrix -> tournament -> evaluation."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "torch",
+    "polars",
+    "huggingface_hub",
+    "numpy>=2.5.5",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
