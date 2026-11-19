@@ -21,7 +21,7 @@ from pathlib import Path
 from huggingface_hub import snapshot_download
 
 REPO_ID = "parthkapur/wcsimfw-data"
-REVISION: str | None = None  # the dataset commit all runs read; pinned once the data is uploaded
+REVISION: str | None = "0296912864dd6147febcc23f367fb209324adae4"  # dataset commit all runs read
 
 
 def data_dir() -> Path:
