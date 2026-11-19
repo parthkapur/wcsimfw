@@ -41,3 +41,28 @@ licence) and a `MANIFEST.sha256`.
 | `elo` | World Football Elo ratings of 2026-06-04 (before kickoff) |
 
 Each file records the raw files it was built from (path and sha256 in the dataset).
+
+## Match models
+
+Every model in `wcsimfw.match` returns a score matrix `[..., 11, 11]`: entry `[i, j]` is the
+probability that home scores `i` and away scores `j` in 90 minutes, batched over pairs.
+
+```python
+import torch
+from wcsimfw import match
+from wcsimfw.reference import load
+
+elo = load("elo")["ratings"]
+m = match.elo_poisson(torch.tensor(elo["Spain"]), torch.tensor(elo["Argentina"]))
+match.outcome(m)                       # P(home win), P(draw), P(away win)
+rh, ra = match.elo_rates(torch.tensor(elo["Spain"]), torch.tensor(elo["Argentina"]))
+x = match.EXTRA_TIME
+match.advance(m, match.poisson(rh * x, ra * x))   # P(home goes through a knockout tie)
+```
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `MU` | 1.30 | goals per team per match between equal sides (fixed) |
+| `SLOPE` | 0.54 | log goal rate per 400 Elo points of gap (fixed) |
+| `EXTRA_TIME` | 1/3 | extra-time goal rate as a share of the 90-minute rate (fixed) |
+| `SHOOTOUT` | 0.5 | P(home wins a shootout) (fixed) |
