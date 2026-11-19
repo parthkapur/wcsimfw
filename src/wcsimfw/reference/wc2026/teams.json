@@ -1,0 +1,762 @@
+{
+ "tournament": "FIFA World Cup 2026",
+ "source": {
+  "files": [
+   {
+    "path": "raw/data_state_2026-11-02/fifa_ranking/rankingsbyschedule_id14933.json",
+    "sha256": "c423e3cd08bdf1380ec161e9dc045f34a125e4d3f7910658ecba672ef22c3f00"
+   },
+   {
+    "path": "raw/data_state_2026-11-02/fifa_ranking/rankingsbyschedule_id15136.json",
+    "sha256": "f5c06197d87efc49ec5a0a9694b830582eeb19cbc8b8d7bdfe224b903ed992d9"
+   },
+   {
+    "path": "raw/data_state_2026-11-02/fifa_ranking/rankingschedules_men_all.json",
+    "sha256": "52c6851d5419c14f01966282c69bbb49ab3e5155899e34f44d43bda570315e9d"
+   },
+   {
+    "path": "raw/ground_truth/wc2026_matches.json",
+    "sha256": "80ac8a73e3f1312649f98a2c3eba7bb171bb71c94922e28bd03426c1f1b64f06"
+   }
+  ],
+  "dataset": "parthkapur/wcsimfw-data",
+  "revision": "0296912864dd6147febcc23f367fb209324adae4"
+ },
+ "hosts": [
+  "Canada",
+  "Mexico",
+  "USA"
+ ],
+ "teams": {
+  "Algeria": {
+   "group": "J",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 6
+  },
+  "Argentina": {
+   "group": "J",
+   "confederation": "CONMEBOL",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Australia": {
+   "group": "D",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Austria": {
+   "group": "J",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Belgium": {
+   "group": "G",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Bosnia and Herzegovina": {
+   "group": "B",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 5
+  },
+  "Brazil": {
+   "group": "C",
+   "confederation": "CONMEBOL",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Cabo Verde": {
+   "group": "H",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Canada": {
+   "group": "B",
+   "confederation": "CONCACAF",
+   "host": true,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Colombia": {
+   "group": "K",
+   "confederation": "CONMEBOL",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Congo DR": {
+   "group": "K",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 1
+  },
+  "Croatia": {
+   "group": "L",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Curaçao": {
+   "group": "E",
+   "confederation": "CONCACAF",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Czechia": {
+   "group": "A",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Côte d'Ivoire": {
+   "group": "E",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Ecuador": {
+   "group": "E",
+   "confederation": "CONMEBOL",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 3
+  },
+  "Egypt": {
+   "group": "G",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "England": {
+   "group": "L",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "France": {
+   "group": "I",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Germany": {
+   "group": "E",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Ghana": {
+   "group": "L",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 3
+  },
+  "Haiti": {
+   "group": "C",
+   "confederation": "CONCACAF",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "IR Iran": {
+   "group": "G",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 9
+  },
+  "Iraq": {
+   "group": "I",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Japan": {
+   "group": "F",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Jordan": {
+   "group": "J",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Korea Republic": {
+   "group": "A",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 10
+  },
+  "Mexico": {
+   "group": "A",
+   "confederation": "CONCACAF",
+   "host": true,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Morocco": {
+   "group": "C",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Netherlands": {
+   "group": "F",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "New Zealand": {
+   "group": "G",
+   "confederation": "OFC",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Norway": {
+   "group": "I",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Panama": {
+   "group": "L",
+   "confederation": "CONCACAF",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Paraguay": {
+   "group": "D",
+   "confederation": "CONMEBOL",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 7
+  },
+  "Portugal": {
+   "group": "K",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Qatar": {
+   "group": "B",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Saudi Arabia": {
+   "group": "H",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Scotland": {
+   "group": "C",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 11
+  },
+  "Senegal": {
+   "group": "I",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 8
+  },
+  "South Africa": {
+   "group": "A",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 2,
+   "third_rank": null
+  },
+  "Spain": {
+   "group": "H",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Sweden": {
+   "group": "F",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 2
+  },
+  "Switzerland": {
+   "group": "B",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Tunisia": {
+   "group": "F",
+   "confederation": "CAF",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "Türkiye": {
+   "group": "D",
+   "confederation": "UEFA",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  },
+  "USA": {
+   "group": "D",
+   "confederation": "CONCACAF",
+   "host": true,
+   "group_position": 1,
+   "third_rank": null
+  },
+  "Uruguay": {
+   "group": "H",
+   "confederation": "CONMEBOL",
+   "host": false,
+   "group_position": 3,
+   "third_rank": 12
+  },
+  "Uzbekistan": {
+   "group": "K",
+   "confederation": "AFC",
+   "host": false,
+   "group_position": 4,
+   "third_rank": null
+  }
+ },
+ "fifa_ranking": {
+  "draw": "2025-11-20",
+  "tiebreak": "2026-06-11",
+  "releases": {
+   "2025-11-20": {
+    "Algeria": {
+     "rank": 35,
+     "points": 1516.37
+    },
+    "Argentina": {
+     "rank": 2,
+     "points": 1873.33
+    },
+    "Australia": {
+     "rank": 26,
+     "points": 1574.01
+    },
+    "Austria": {
+     "rank": 24,
+     "points": 1585.51
+    },
+    "Belgium": {
+     "rank": 8,
+     "points": 1730.71
+    },
+    "Bosnia and Herzegovina": {
+     "rank": 71,
+     "points": 1362.37
+    },
+    "Brazil": {
+     "rank": 5,
+     "points": 1760.46
+    },
+    "Cabo Verde": {
+     "rank": 68,
+     "points": 1367.95
+    },
+    "Canada": {
+     "rank": 27,
+     "points": 1559.15
+    },
+    "Colombia": {
+     "rank": 13,
+     "points": 1701.3
+    },
+    "Congo DR": {
+     "rank": 56,
+     "points": 1442.5
+    },
+    "Croatia": {
+     "rank": 10,
+     "points": 1716.88
+    },
+    "Curaçao": {
+     "rank": 82,
+     "points": 1302.7
+    },
+    "Czechia": {
+     "rank": 44,
+     "points": 1487.0
+    },
+    "Côte d'Ivoire": {
+     "rank": 42,
+     "points": 1489.59
+    },
+    "Ecuador": {
+     "rank": 23,
+     "points": 1591.73
+    },
+    "Egypt": {
+     "rank": 34,
+     "points": 1520.68
+    },
+    "England": {
+     "rank": 4,
+     "points": 1834.12
+    },
+    "France": {
+     "rank": 3,
+     "points": 1870.0
+    },
+    "Germany": {
+     "rank": 9,
+     "points": 1724.15
+    },
+    "Ghana": {
+     "rank": 72,
+     "points": 1351.09
+    },
+    "Haiti": {
+     "rank": 84,
+     "points": 1294.49
+    },
+    "IR Iran": {
+     "rank": 20,
+     "points": 1617.02
+    },
+    "Iraq": {
+     "rank": 58,
+     "points": 1438.92
+    },
+    "Japan": {
+     "rank": 18,
+     "points": 1650.12
+    },
+    "Jordan": {
+     "rank": 66,
+     "points": 1377.66
+    },
+    "Korea Republic": {
+     "rank": 22,
+     "points": 1599.45
+    },
+    "Mexico": {
+     "rank": 15,
+     "points": 1675.75
+    },
+    "Morocco": {
+     "rank": 11,
+     "points": 1713.12
+    },
+    "Netherlands": {
+     "rank": 7,
+     "points": 1756.27
+    },
+    "New Zealand": {
+     "rank": 86,
+     "points": 1279.25
+    },
+    "Norway": {
+     "rank": 29,
+     "points": 1553.14
+    },
+    "Panama": {
+     "rank": 30,
+     "points": 1540.43
+    },
+    "Paraguay": {
+     "rank": 39,
+     "points": 1501.5
+    },
+    "Portugal": {
+     "rank": 6,
+     "points": 1760.38
+    },
+    "Qatar": {
+     "rank": 51,
+     "points": 1461.6
+    },
+    "Saudi Arabia": {
+     "rank": 60,
+     "points": 1428.74
+    },
+    "Scotland": {
+     "rank": 36,
+     "points": 1506.77
+    },
+    "Senegal": {
+     "rank": 19,
+     "points": 1648.07
+    },
+    "South Africa": {
+     "rank": 61,
+     "points": 1426.73
+    },
+    "Spain": {
+     "rank": 1,
+     "points": 1877.18
+    },
+    "Sweden": {
+     "rank": 43,
+     "points": 1487.13
+    },
+    "Switzerland": {
+     "rank": 17,
+     "points": 1654.69
+    },
+    "Tunisia": {
+     "rank": 40,
+     "points": 1497.13
+    },
+    "Türkiye": {
+     "rank": 25,
+     "points": 1582.69
+    },
+    "USA": {
+     "rank": 14,
+     "points": 1681.88
+    },
+    "Uruguay": {
+     "rank": 16,
+     "points": 1672.62
+    },
+    "Uzbekistan": {
+     "rank": 50,
+     "points": 1462.03
+    }
+   },
+   "2026-06-11": {
+    "Algeria": {
+     "rank": 28,
+     "points": 1571.03
+    },
+    "Argentina": {
+     "rank": 1,
+     "points": 1877.27
+    },
+    "Australia": {
+     "rank": 27,
+     "points": 1579.34
+    },
+    "Austria": {
+     "rank": 24,
+     "points": 1597.4
+    },
+    "Belgium": {
+     "rank": 9,
+     "points": 1742.24
+    },
+    "Bosnia and Herzegovina": {
+     "rank": 64,
+     "points": 1387.22
+    },
+    "Brazil": {
+     "rank": 6,
+     "points": 1765.86
+    },
+    "Cabo Verde": {
+     "rank": 67,
+     "points": 1371.11
+    },
+    "Canada": {
+     "rank": 30,
+     "points": 1559.48
+    },
+    "Colombia": {
+     "rank": 13,
+     "points": 1698.35
+    },
+    "Congo DR": {
+     "rank": 46,
+     "points": 1474.43
+    },
+    "Croatia": {
+     "rank": 11,
+     "points": 1714.87
+    },
+    "Curaçao": {
+     "rank": 82,
+     "points": 1294.77
+    },
+    "Czechia": {
+     "rank": 40,
+     "points": 1505.74
+    },
+    "Côte d'Ivoire": {
+     "rank": 33,
+     "points": 1540.87
+    },
+    "Ecuador": {
+     "rank": 23,
+     "points": 1598.52
+    },
+    "Egypt": {
+     "rank": 29,
+     "points": 1562.37
+    },
+    "England": {
+     "rank": 4,
+     "points": 1828.02
+    },
+    "France": {
+     "rank": 3,
+     "points": 1870.7
+    },
+    "Germany": {
+     "rank": 10,
+     "points": 1735.77
+    },
+    "Ghana": {
+     "rank": 73,
+     "points": 1346.88
+    },
+    "Haiti": {
+     "rank": 83,
+     "points": 1293.1
+    },
+    "IR Iran": {
+     "rank": 20,
+     "points": 1619.58
+    },
+    "Iraq": {
+     "rank": 57,
+     "points": 1446.28
+    },
+    "Japan": {
+     "rank": 18,
+     "points": 1661.58
+    },
+    "Jordan": {
+     "rank": 63,
+     "points": 1387.74
+    },
+    "Korea Republic": {
+     "rank": 25,
+     "points": 1591.63
+    },
+    "Mexico": {
+     "rank": 14,
+     "points": 1687.48
+    },
+    "Morocco": {
+     "rank": 7,
+     "points": 1755.1
+    },
+    "Netherlands": {
+     "rank": 8,
+     "points": 1753.57
+    },
+    "New Zealand": {
+     "rank": 85,
+     "points": 1275.58
+    },
+    "Norway": {
+     "rank": 31,
+     "points": 1557.44
+    },
+    "Panama": {
+     "rank": 34,
+     "points": 1539.16
+    },
+    "Paraguay": {
+     "rank": 41,
+     "points": 1505.35
+    },
+    "Portugal": {
+     "rank": 5,
+     "points": 1767.85
+    },
+    "Qatar": {
+     "rank": 56,
+     "points": 1450.31
+    },
+    "Saudi Arabia": {
+     "rank": 61,
+     "points": 1423.88
+    },
+    "Scotland": {
+     "rank": 42,
+     "points": 1503.34
+    },
+    "Senegal": {
+     "rank": 15,
+     "points": 1684.07
+    },
+    "South Africa": {
+     "rank": 60,
+     "points": 1428.38
+    },
+    "Spain": {
+     "rank": 2,
+     "points": 1874.71
+    },
+    "Sweden": {
+     "rank": 38,
+     "points": 1509.79
+    },
+    "Switzerland": {
+     "rank": 19,
+     "points": 1650.06
+    },
+    "Tunisia": {
+     "rank": 45,
+     "points": 1476.41
+    },
+    "Türkiye": {
+     "rank": 22,
+     "points": 1605.73
+    },
+    "USA": {
+     "rank": 17,
+     "points": 1671.23
+    },
+    "Uruguay": {
+     "rank": 16,
+     "points": 1673.07
+    },
+    "Uzbekistan": {
+     "rank": 50,
+     "points": 1458.73
+    }
+   }
+  }
+ }
+}

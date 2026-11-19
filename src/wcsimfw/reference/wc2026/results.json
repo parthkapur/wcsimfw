@@ -1,0 +1,1759 @@
+{
+ "tournament": "FIFA World Cup 2026",
+ "source": {
+  "files": [
+   {
+    "path": "raw/openplay/data-v0.1.0/matches.parquet",
+    "sha256": "99017d55a38c1c03eda15ffc500e23be7c6e5a380839809732f48e531f8526ac"
+   },
+   {
+    "path": "raw/data_state_2026-11-02/martj42_international_results/results_2026-11-02.csv",
+    "sha256": "09aac809e317f3004c69720a38addb656c49ebb19f1937deab96f96e3362257a"
+   },
+   {
+    "path": "raw/ground_truth/wc2026_matches.json",
+    "sha256": "80ac8a73e3f1312649f98a2c3eba7bb171bb71c94922e28bd03426c1f1b64f06"
+   }
+  ],
+  "dataset": "parthkapur/wcsimfw-data",
+  "revision": "0296912864dd6147febcc23f367fb209324adae4"
+ },
+ "note": "goals_90 after 90 minutes; goals_120 after extra time (null if none); penalties of the shootout (null if none); match = FIFA match number (knockout)",
+ "matches": [
+  {
+   "date": "2026-06-11",
+   "kickoff_utc": "2026-06-11T20:00",
+   "city": "Mexico City",
+   "stage": "group",
+   "group": "A",
+   "matchday": 1,
+   "home": "Mexico",
+   "away": "South Africa",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-11",
+   "kickoff_utc": "2026-06-12T03:00",
+   "city": "Zapopan",
+   "stage": "group",
+   "group": "A",
+   "matchday": 1,
+   "home": "Korea Republic",
+   "away": "Czechia",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-12",
+   "kickoff_utc": "2026-06-12T20:00",
+   "city": "Toronto",
+   "stage": "group",
+   "group": "B",
+   "matchday": 1,
+   "home": "Canada",
+   "away": "Bosnia and Herzegovina",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-12",
+   "kickoff_utc": "2026-06-13T02:00",
+   "city": "Inglewood",
+   "stage": "group",
+   "group": "D",
+   "matchday": 1,
+   "home": "USA",
+   "away": "Paraguay",
+   "goals_90": [
+    4,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-13",
+   "kickoff_utc": "2026-06-13T20:00",
+   "city": "Santa Clara",
+   "stage": "group",
+   "group": "B",
+   "matchday": 1,
+   "home": "Qatar",
+   "away": "Switzerland",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-13",
+   "kickoff_utc": "2026-06-13T23:00",
+   "city": "East Rutherford",
+   "stage": "group",
+   "group": "C",
+   "matchday": 1,
+   "home": "Brazil",
+   "away": "Morocco",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-13",
+   "kickoff_utc": "2026-06-14T02:00",
+   "city": "Foxborough",
+   "stage": "group",
+   "group": "C",
+   "matchday": 1,
+   "home": "Haiti",
+   "away": "Scotland",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-13",
+   "kickoff_utc": "2026-06-14T05:00",
+   "city": "Vancouver",
+   "stage": "group",
+   "group": "D",
+   "matchday": 1,
+   "home": "Australia",
+   "away": "Türkiye",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-14",
+   "kickoff_utc": "2026-06-14T18:00",
+   "city": "Houston",
+   "stage": "group",
+   "group": "E",
+   "matchday": 1,
+   "home": "Germany",
+   "away": "Curaçao",
+   "goals_90": [
+    7,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-14",
+   "kickoff_utc": "2026-06-14T21:00",
+   "city": "Arlington",
+   "stage": "group",
+   "group": "F",
+   "matchday": 1,
+   "home": "Netherlands",
+   "away": "Japan",
+   "goals_90": [
+    2,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-14",
+   "kickoff_utc": "2026-06-15T00:00",
+   "city": "Philadelphia",
+   "stage": "group",
+   "group": "E",
+   "matchday": 1,
+   "home": "Côte d'Ivoire",
+   "away": "Ecuador",
+   "goals_90": [
+    1,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-14",
+   "kickoff_utc": "2026-06-15T03:00",
+   "city": "Guadalupe",
+   "stage": "group",
+   "group": "F",
+   "matchday": 1,
+   "home": "Sweden",
+   "away": "Tunisia",
+   "goals_90": [
+    5,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-15",
+   "kickoff_utc": "2026-06-15T17:00",
+   "city": "Atlanta",
+   "stage": "group",
+   "group": "H",
+   "matchday": 1,
+   "home": "Spain",
+   "away": "Cabo Verde",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-15",
+   "kickoff_utc": "2026-06-15T20:00",
+   "city": "Seattle",
+   "stage": "group",
+   "group": "G",
+   "matchday": 1,
+   "home": "Belgium",
+   "away": "Egypt",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-15",
+   "kickoff_utc": "2026-06-15T23:00",
+   "city": "Miami Gardens",
+   "stage": "group",
+   "group": "H",
+   "matchday": 1,
+   "home": "Saudi Arabia",
+   "away": "Uruguay",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-15",
+   "kickoff_utc": "2026-06-16T02:00",
+   "city": "Inglewood",
+   "stage": "group",
+   "group": "G",
+   "matchday": 1,
+   "home": "IR Iran",
+   "away": "New Zealand",
+   "goals_90": [
+    2,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-16",
+   "kickoff_utc": "2026-06-16T20:00",
+   "city": "East Rutherford",
+   "stage": "group",
+   "group": "I",
+   "matchday": 1,
+   "home": "France",
+   "away": "Senegal",
+   "goals_90": [
+    3,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-16",
+   "kickoff_utc": "2026-06-16T23:00",
+   "city": "Foxborough",
+   "stage": "group",
+   "group": "I",
+   "matchday": 1,
+   "home": "Iraq",
+   "away": "Norway",
+   "goals_90": [
+    1,
+    4
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-16",
+   "kickoff_utc": "2026-06-17T02:00",
+   "city": "Kansas City",
+   "stage": "group",
+   "group": "J",
+   "matchday": 1,
+   "home": "Argentina",
+   "away": "Algeria",
+   "goals_90": [
+    3,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-16",
+   "kickoff_utc": "2026-06-17T05:00",
+   "city": "Santa Clara",
+   "stage": "group",
+   "group": "J",
+   "matchday": 1,
+   "home": "Austria",
+   "away": "Jordan",
+   "goals_90": [
+    3,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-17",
+   "kickoff_utc": "2026-06-17T18:00",
+   "city": "Houston",
+   "stage": "group",
+   "group": "K",
+   "matchday": 1,
+   "home": "Portugal",
+   "away": "Congo DR",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-17",
+   "kickoff_utc": "2026-06-17T21:00",
+   "city": "Arlington",
+   "stage": "group",
+   "group": "L",
+   "matchday": 1,
+   "home": "England",
+   "away": "Croatia",
+   "goals_90": [
+    4,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-17",
+   "kickoff_utc": "2026-06-18T00:00",
+   "city": "Toronto",
+   "stage": "group",
+   "group": "L",
+   "matchday": 1,
+   "home": "Ghana",
+   "away": "Panama",
+   "goals_90": [
+    1,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-17",
+   "kickoff_utc": "2026-06-18T03:00",
+   "city": "Mexico City",
+   "stage": "group",
+   "group": "K",
+   "matchday": 1,
+   "home": "Uzbekistan",
+   "away": "Colombia",
+   "goals_90": [
+    1,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-18",
+   "kickoff_utc": "2026-06-18T17:00",
+   "city": "Atlanta",
+   "stage": "group",
+   "group": "A",
+   "matchday": 2,
+   "home": "Czechia",
+   "away": "South Africa",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-18",
+   "kickoff_utc": "2026-06-18T20:00",
+   "city": "Inglewood",
+   "stage": "group",
+   "group": "B",
+   "matchday": 2,
+   "home": "Switzerland",
+   "away": "Bosnia and Herzegovina",
+   "goals_90": [
+    4,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-18",
+   "kickoff_utc": "2026-06-18T23:00",
+   "city": "Vancouver",
+   "stage": "group",
+   "group": "B",
+   "matchday": 2,
+   "home": "Canada",
+   "away": "Qatar",
+   "goals_90": [
+    6,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-18",
+   "kickoff_utc": "2026-06-19T02:00",
+   "city": "Zapopan",
+   "stage": "group",
+   "group": "A",
+   "matchday": 2,
+   "home": "Mexico",
+   "away": "Korea Republic",
+   "goals_90": [
+    1,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-19",
+   "kickoff_utc": "2026-06-19T20:00",
+   "city": "Seattle",
+   "stage": "group",
+   "group": "D",
+   "matchday": 2,
+   "home": "USA",
+   "away": "Australia",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-19",
+   "kickoff_utc": "2026-06-19T23:00",
+   "city": "Foxborough",
+   "stage": "group",
+   "group": "C",
+   "matchday": 2,
+   "home": "Scotland",
+   "away": "Morocco",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-19",
+   "kickoff_utc": "2026-06-20T01:30",
+   "city": "Philadelphia",
+   "stage": "group",
+   "group": "C",
+   "matchday": 2,
+   "home": "Brazil",
+   "away": "Haiti",
+   "goals_90": [
+    3,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-19",
+   "kickoff_utc": "2026-06-20T04:00",
+   "city": "Santa Clara",
+   "stage": "group",
+   "group": "D",
+   "matchday": 2,
+   "home": "Türkiye",
+   "away": "Paraguay",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-20",
+   "kickoff_utc": "2026-06-20T18:00",
+   "city": "Houston",
+   "stage": "group",
+   "group": "F",
+   "matchday": 2,
+   "home": "Netherlands",
+   "away": "Sweden",
+   "goals_90": [
+    5,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-20",
+   "kickoff_utc": "2026-06-20T21:00",
+   "city": "Toronto",
+   "stage": "group",
+   "group": "E",
+   "matchday": 2,
+   "home": "Germany",
+   "away": "Côte d'Ivoire",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-20",
+   "kickoff_utc": "2026-06-21T01:00",
+   "city": "Kansas City",
+   "stage": "group",
+   "group": "E",
+   "matchday": 2,
+   "home": "Ecuador",
+   "away": "Curaçao",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-20",
+   "kickoff_utc": "2026-06-21T05:00",
+   "city": "Guadalupe",
+   "stage": "group",
+   "group": "F",
+   "matchday": 2,
+   "home": "Tunisia",
+   "away": "Japan",
+   "goals_90": [
+    0,
+    4
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-21",
+   "kickoff_utc": "2026-06-21T17:00",
+   "city": "Atlanta",
+   "stage": "group",
+   "group": "H",
+   "matchday": 2,
+   "home": "Spain",
+   "away": "Saudi Arabia",
+   "goals_90": [
+    4,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-21",
+   "kickoff_utc": "2026-06-21T20:00",
+   "city": "Inglewood",
+   "stage": "group",
+   "group": "G",
+   "matchday": 2,
+   "home": "Belgium",
+   "away": "IR Iran",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-21",
+   "kickoff_utc": "2026-06-21T23:00",
+   "city": "Miami Gardens",
+   "stage": "group",
+   "group": "H",
+   "matchday": 2,
+   "home": "Uruguay",
+   "away": "Cabo Verde",
+   "goals_90": [
+    2,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-21",
+   "kickoff_utc": "2026-06-22T02:00",
+   "city": "Vancouver",
+   "stage": "group",
+   "group": "G",
+   "matchday": 2,
+   "home": "New Zealand",
+   "away": "Egypt",
+   "goals_90": [
+    1,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-22",
+   "kickoff_utc": "2026-06-22T18:00",
+   "city": "Arlington",
+   "stage": "group",
+   "group": "J",
+   "matchday": 2,
+   "home": "Argentina",
+   "away": "Austria",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-22",
+   "kickoff_utc": "2026-06-22T22:00",
+   "city": "Philadelphia",
+   "stage": "group",
+   "group": "I",
+   "matchday": 2,
+   "home": "France",
+   "away": "Iraq",
+   "goals_90": [
+    3,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-22",
+   "kickoff_utc": "2026-06-23T01:00",
+   "city": "East Rutherford",
+   "stage": "group",
+   "group": "I",
+   "matchday": 2,
+   "home": "Norway",
+   "away": "Senegal",
+   "goals_90": [
+    3,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-22",
+   "kickoff_utc": "2026-06-23T04:00",
+   "city": "Santa Clara",
+   "stage": "group",
+   "group": "J",
+   "matchday": 2,
+   "home": "Jordan",
+   "away": "Algeria",
+   "goals_90": [
+    1,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-23",
+   "kickoff_utc": "2026-06-23T18:00",
+   "city": "Houston",
+   "stage": "group",
+   "group": "K",
+   "matchday": 2,
+   "home": "Portugal",
+   "away": "Uzbekistan",
+   "goals_90": [
+    5,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-23",
+   "kickoff_utc": "2026-06-23T21:00",
+   "city": "Foxborough",
+   "stage": "group",
+   "group": "L",
+   "matchday": 2,
+   "home": "England",
+   "away": "Ghana",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-23",
+   "kickoff_utc": "2026-06-24T00:00",
+   "city": "Toronto",
+   "stage": "group",
+   "group": "L",
+   "matchday": 2,
+   "home": "Panama",
+   "away": "Croatia",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-23",
+   "kickoff_utc": "2026-06-24T03:00",
+   "city": "Zapopan",
+   "stage": "group",
+   "group": "K",
+   "matchday": 2,
+   "home": "Colombia",
+   "away": "Congo DR",
+   "goals_90": [
+    1,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-24",
+   "kickoff_utc": "2026-06-24T20:00",
+   "city": "Vancouver",
+   "stage": "group",
+   "group": "B",
+   "matchday": 3,
+   "home": "Switzerland",
+   "away": "Canada",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-24",
+   "kickoff_utc": "2026-06-24T20:00",
+   "city": "Seattle",
+   "stage": "group",
+   "group": "B",
+   "matchday": 3,
+   "home": "Bosnia and Herzegovina",
+   "away": "Qatar",
+   "goals_90": [
+    3,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-24",
+   "kickoff_utc": "2026-06-24T23:00",
+   "city": "Miami Gardens",
+   "stage": "group",
+   "group": "C",
+   "matchday": 3,
+   "home": "Scotland",
+   "away": "Brazil",
+   "goals_90": [
+    0,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-24",
+   "kickoff_utc": "2026-06-24T23:00",
+   "city": "Atlanta",
+   "stage": "group",
+   "group": "C",
+   "matchday": 3,
+   "home": "Morocco",
+   "away": "Haiti",
+   "goals_90": [
+    4,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-24",
+   "kickoff_utc": "2026-06-25T02:00",
+   "city": "Guadalupe",
+   "stage": "group",
+   "group": "A",
+   "matchday": 3,
+   "home": "South Africa",
+   "away": "Korea Republic",
+   "goals_90": [
+    1,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-24",
+   "kickoff_utc": "2026-06-25T02:00",
+   "city": "Mexico City",
+   "stage": "group",
+   "group": "A",
+   "matchday": 3,
+   "home": "Czechia",
+   "away": "Mexico",
+   "goals_90": [
+    0,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-25",
+   "kickoff_utc": "2026-06-25T21:00",
+   "city": "East Rutherford",
+   "stage": "group",
+   "group": "E",
+   "matchday": 3,
+   "home": "Ecuador",
+   "away": "Germany",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-25",
+   "kickoff_utc": "2026-06-25T21:00",
+   "city": "Philadelphia",
+   "stage": "group",
+   "group": "E",
+   "matchday": 3,
+   "home": "Curaçao",
+   "away": "Côte d'Ivoire",
+   "goals_90": [
+    0,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-25",
+   "kickoff_utc": "2026-06-26T00:00",
+   "city": "Kansas City",
+   "stage": "group",
+   "group": "F",
+   "matchday": 3,
+   "home": "Tunisia",
+   "away": "Netherlands",
+   "goals_90": [
+    1,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-25",
+   "kickoff_utc": "2026-06-26T00:00",
+   "city": "Arlington",
+   "stage": "group",
+   "group": "F",
+   "matchday": 3,
+   "home": "Japan",
+   "away": "Sweden",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-25",
+   "kickoff_utc": "2026-06-26T03:00",
+   "city": "Santa Clara",
+   "stage": "group",
+   "group": "D",
+   "matchday": 3,
+   "home": "Paraguay",
+   "away": "Australia",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-25",
+   "kickoff_utc": "2026-06-26T03:00",
+   "city": "Inglewood",
+   "stage": "group",
+   "group": "D",
+   "matchday": 3,
+   "home": "Türkiye",
+   "away": "USA",
+   "goals_90": [
+    3,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-26",
+   "kickoff_utc": "2026-06-26T20:00",
+   "city": "Foxborough",
+   "stage": "group",
+   "group": "I",
+   "matchday": 3,
+   "home": "Norway",
+   "away": "France",
+   "goals_90": [
+    1,
+    4
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-26",
+   "kickoff_utc": "2026-06-26T20:00",
+   "city": "Toronto",
+   "stage": "group",
+   "group": "I",
+   "matchday": 3,
+   "home": "Senegal",
+   "away": "Iraq",
+   "goals_90": [
+    5,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-26",
+   "kickoff_utc": "2026-06-27T01:00",
+   "city": "Houston",
+   "stage": "group",
+   "group": "H",
+   "matchday": 3,
+   "home": "Cabo Verde",
+   "away": "Saudi Arabia",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-26",
+   "kickoff_utc": "2026-06-27T01:00",
+   "city": "Zapopan",
+   "stage": "group",
+   "group": "H",
+   "matchday": 3,
+   "home": "Uruguay",
+   "away": "Spain",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-26",
+   "kickoff_utc": "2026-06-27T04:00",
+   "city": "Seattle",
+   "stage": "group",
+   "group": "G",
+   "matchday": 3,
+   "home": "Egypt",
+   "away": "IR Iran",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-26",
+   "kickoff_utc": "2026-06-27T04:00",
+   "city": "Vancouver",
+   "stage": "group",
+   "group": "G",
+   "matchday": 3,
+   "home": "New Zealand",
+   "away": "Belgium",
+   "goals_90": [
+    1,
+    5
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-27",
+   "kickoff_utc": "2026-06-27T22:00",
+   "city": "East Rutherford",
+   "stage": "group",
+   "group": "L",
+   "matchday": 3,
+   "home": "Panama",
+   "away": "England",
+   "goals_90": [
+    0,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-27",
+   "kickoff_utc": "2026-06-27T22:00",
+   "city": "Philadelphia",
+   "stage": "group",
+   "group": "L",
+   "matchday": 3,
+   "home": "Croatia",
+   "away": "Ghana",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-27",
+   "kickoff_utc": "2026-06-28T00:30",
+   "city": "Miami Gardens",
+   "stage": "group",
+   "group": "K",
+   "matchday": 3,
+   "home": "Colombia",
+   "away": "Portugal",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-27",
+   "kickoff_utc": "2026-06-28T00:30",
+   "city": "Atlanta",
+   "stage": "group",
+   "group": "K",
+   "matchday": 3,
+   "home": "Congo DR",
+   "away": "Uzbekistan",
+   "goals_90": [
+    3,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-27",
+   "kickoff_utc": "2026-06-28T03:00",
+   "city": "Arlington",
+   "stage": "group",
+   "group": "J",
+   "matchday": 3,
+   "home": "Jordan",
+   "away": "Argentina",
+   "goals_90": [
+    1,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-27",
+   "kickoff_utc": "2026-06-28T03:00",
+   "city": "Kansas City",
+   "stage": "group",
+   "group": "J",
+   "matchday": 3,
+   "home": "Algeria",
+   "away": "Austria",
+   "goals_90": [
+    3,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null
+  },
+  {
+   "date": "2026-06-28",
+   "kickoff_utc": "2026-06-28T20:00",
+   "city": "Inglewood",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "South Africa",
+   "away": "Canada",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 73
+  },
+  {
+   "date": "2026-06-29",
+   "kickoff_utc": "2026-06-29T18:00",
+   "city": "Houston",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Brazil",
+   "away": "Japan",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 76
+  },
+  {
+   "date": "2026-06-29",
+   "kickoff_utc": "2026-06-29T21:30",
+   "city": "Foxborough",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Germany",
+   "away": "Paraguay",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": [
+    1,
+    1
+   ],
+   "penalties": [
+    3,
+    4
+   ],
+   "match": 74
+  },
+  {
+   "date": "2026-06-29",
+   "kickoff_utc": "2026-06-30T02:00",
+   "city": "Guadalupe",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Netherlands",
+   "away": "Morocco",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": [
+    1,
+    1
+   ],
+   "penalties": [
+    2,
+    3
+   ],
+   "match": 75
+  },
+  {
+   "date": "2026-06-30",
+   "kickoff_utc": "2026-06-30T18:00",
+   "city": "Arlington",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Côte d'Ivoire",
+   "away": "Norway",
+   "goals_90": [
+    1,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 78
+  },
+  {
+   "date": "2026-06-30",
+   "kickoff_utc": "2026-06-30T22:00",
+   "city": "East Rutherford",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "France",
+   "away": "Sweden",
+   "goals_90": [
+    3,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 77
+  },
+  {
+   "date": "2026-06-30",
+   "kickoff_utc": "2026-07-01T03:00",
+   "city": "Mexico City",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Mexico",
+   "away": "Ecuador",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 79
+  },
+  {
+   "date": "2026-07-01",
+   "kickoff_utc": "2026-07-01T17:00",
+   "city": "Atlanta",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "England",
+   "away": "Congo DR",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 80
+  },
+  {
+   "date": "2026-07-01",
+   "kickoff_utc": "2026-07-01T21:00",
+   "city": "Seattle",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Belgium",
+   "away": "Senegal",
+   "goals_90": [
+    2,
+    2
+   ],
+   "goals_120": [
+    3,
+    2
+   ],
+   "penalties": null,
+   "match": 82
+  },
+  {
+   "date": "2026-07-01",
+   "kickoff_utc": "2026-07-02T01:00",
+   "city": "Santa Clara",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "USA",
+   "away": "Bosnia and Herzegovina",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 81
+  },
+  {
+   "date": "2026-07-02",
+   "kickoff_utc": "2026-07-02T20:00",
+   "city": "Inglewood",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Spain",
+   "away": "Austria",
+   "goals_90": [
+    3,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 84
+  },
+  {
+   "date": "2026-07-02",
+   "kickoff_utc": "2026-07-03T00:00",
+   "city": "Toronto",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Portugal",
+   "away": "Croatia",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 83
+  },
+  {
+   "date": "2026-07-02",
+   "kickoff_utc": "2026-07-03T04:00",
+   "city": "Vancouver",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Switzerland",
+   "away": "Algeria",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 85
+  },
+  {
+   "date": "2026-07-03",
+   "kickoff_utc": "2026-07-03T19:00",
+   "city": "Arlington",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Australia",
+   "away": "Egypt",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": [
+    1,
+    1
+   ],
+   "penalties": [
+    2,
+    4
+   ],
+   "match": 88
+  },
+  {
+   "date": "2026-07-03",
+   "kickoff_utc": "2026-07-03T23:00",
+   "city": "Miami Gardens",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Argentina",
+   "away": "Cabo Verde",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": [
+    3,
+    2
+   ],
+   "penalties": null,
+   "match": 86
+  },
+  {
+   "date": "2026-07-03",
+   "kickoff_utc": "2026-07-04T02:30",
+   "city": "Kansas City",
+   "stage": "r32",
+   "group": null,
+   "matchday": null,
+   "home": "Colombia",
+   "away": "Ghana",
+   "goals_90": [
+    1,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 87
+  },
+  {
+   "date": "2026-07-04",
+   "kickoff_utc": "2026-07-04T18:00",
+   "city": "Houston",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "Canada",
+   "away": "Morocco",
+   "goals_90": [
+    0,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 90
+  },
+  {
+   "date": "2026-07-04",
+   "kickoff_utc": "2026-07-04T22:00",
+   "city": "Philadelphia",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "Paraguay",
+   "away": "France",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 89
+  },
+  {
+   "date": "2026-07-05",
+   "kickoff_utc": "2026-07-05T21:00",
+   "city": "East Rutherford",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "Brazil",
+   "away": "Norway",
+   "goals_90": [
+    1,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 91
+  },
+  {
+   "date": "2026-07-05",
+   "kickoff_utc": "2026-07-06T02:00",
+   "city": "Mexico City",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "Mexico",
+   "away": "England",
+   "goals_90": [
+    2,
+    3
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 92
+  },
+  {
+   "date": "2026-07-06",
+   "kickoff_utc": "2026-07-06T20:00",
+   "city": "Dallas",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "Portugal",
+   "away": "Spain",
+   "goals_90": [
+    0,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 93
+  },
+  {
+   "date": "2026-07-06",
+   "kickoff_utc": "2026-07-07T01:00",
+   "city": "Seattle",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "USA",
+   "away": "Belgium",
+   "goals_90": [
+    1,
+    4
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 94
+  },
+  {
+   "date": "2026-07-07",
+   "kickoff_utc": "2026-07-07T17:00",
+   "city": "Atlanta",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "Argentina",
+   "away": "Egypt",
+   "goals_90": [
+    3,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 95
+  },
+  {
+   "date": "2026-07-07",
+   "kickoff_utc": "2026-07-07T21:00",
+   "city": "Vancouver",
+   "stage": "r16",
+   "group": null,
+   "matchday": null,
+   "home": "Switzerland",
+   "away": "Colombia",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": [
+    0,
+    0
+   ],
+   "penalties": [
+    4,
+    3
+   ],
+   "match": 96
+  },
+  {
+   "date": "2026-07-09",
+   "kickoff_utc": "2026-07-09T21:00",
+   "city": "Foxborough",
+   "stage": "qf",
+   "group": null,
+   "matchday": null,
+   "home": "France",
+   "away": "Morocco",
+   "goals_90": [
+    2,
+    0
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 97
+  },
+  {
+   "date": "2026-07-10",
+   "kickoff_utc": "2026-07-10T20:00",
+   "city": "Inglewood",
+   "stage": "qf",
+   "group": null,
+   "matchday": null,
+   "home": "Spain",
+   "away": "Belgium",
+   "goals_90": [
+    2,
+    1
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 98
+  },
+  {
+   "date": "2026-07-11",
+   "kickoff_utc": "2026-07-11T22:00",
+   "city": "Miami Gardens",
+   "stage": "qf",
+   "group": null,
+   "matchday": null,
+   "home": "Norway",
+   "away": "England",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": [
+    1,
+    2
+   ],
+   "penalties": null,
+   "match": 99
+  },
+  {
+   "date": "2026-07-11",
+   "kickoff_utc": "2026-07-12T02:00",
+   "city": "Kansas City",
+   "stage": "qf",
+   "group": null,
+   "matchday": null,
+   "home": "Argentina",
+   "away": "Switzerland",
+   "goals_90": [
+    1,
+    1
+   ],
+   "goals_120": [
+    3,
+    1
+   ],
+   "penalties": null,
+   "match": 100
+  },
+  {
+   "date": "2026-07-14",
+   "kickoff_utc": "2026-07-14T20:00",
+   "city": "Arlington",
+   "stage": "sf",
+   "group": null,
+   "matchday": null,
+   "home": "France",
+   "away": "Spain",
+   "goals_90": [
+    0,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 101
+  },
+  {
+   "date": "2026-07-15",
+   "kickoff_utc": "2026-07-15T20:00",
+   "city": "Atlanta",
+   "stage": "sf",
+   "group": null,
+   "matchday": null,
+   "home": "England",
+   "away": "Argentina",
+   "goals_90": [
+    1,
+    2
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 102
+  },
+  {
+   "date": "2026-07-18",
+   "kickoff_utc": "2026-07-18T22:00",
+   "city": "Miami Gardens",
+   "stage": "third_place",
+   "group": null,
+   "matchday": null,
+   "home": "France",
+   "away": "England",
+   "goals_90": [
+    4,
+    6
+   ],
+   "goals_120": null,
+   "penalties": null,
+   "match": 103
+  },
+  {
+   "date": "2026-07-19",
+   "kickoff_utc": "2026-07-19T20:00",
+   "city": "East Rutherford",
+   "stage": "final",
+   "group": null,
+   "matchday": null,
+   "home": "Spain",
+   "away": "Argentina",
+   "goals_90": [
+    0,
+    0
+   ],
+   "goals_120": [
+    1,
+    0
+   ],
+   "penalties": null,
+   "match": 104
+  }
+ ]
+}

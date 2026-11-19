@@ -28,3 +28,16 @@ uv run ruff check  # lint
 
 The dataset is laid out as `raw/<source>/...`, each source with a `SOURCE.md` (origin, dates,
 licence) and a `MANIFEST.sha256`.
+
+## Reference data
+
+`wcsimfw.reference.load(name, tournament="wc2026")` returns the facts shipped with the package:
+
+| Name | Content |
+|---|---|
+| `format` | groups, qualification, ranking criteria, knockout matches 73–104, FIFA Annexe C |
+| `teams` | group, confederation, host, final group position, FIFA ranking releases |
+| `results` | all 104 matches: goals after 90 minutes, after extra time, penalties |
+| `elo` | World Football Elo ratings of 2026-06-04 (before kickoff) |
+
+Each file records the raw files it was built from (path and sha256 in the dataset).
