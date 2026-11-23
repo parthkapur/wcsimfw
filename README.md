@@ -92,6 +92,20 @@ Origins (`after`): `None` (kickoff), `md1`, `md2`, `md3`, `r32`, `r16`, `qf`, `s
 simulated round-of-32 line-up. Both use the same line-ups and agree within Monte Carlo error;
 `exact` has the smaller error. `exact[:, k] / exact[:, 0]` is P(reach stage k | left the group).
 
+## Elo strength
+
+`wcsimfw.elo` plays World Football Elo (eloratings.net rules: start 1500, home +100, K by
+competition, goal-difference factor, shootout = draw) forward over a results history.
+
+```python
+from wcsimfw import elo
+r = elo.ratings(elo.history("2026-06-11"))                    # every result before kickoff
+r = elo.ratings(elo.tournament_matches(t.played("md2")), r)    # plus the played World Cup matches
+```
+
+`match.fit_elo_poisson(gap, home, goals_home, goals_away)` measures `mu`, `slope` and a home term
+by Poisson maximum likelihood, each with a standard error.
+
 ## Evaluation and run configs
 
 `wcsimfw.evaluate` scores a forecast from one origin against the played tournament (all scores:
@@ -102,8 +116,12 @@ lower is better).
 | `match_rps`, `brier`, `log_score` | 90-minute result (home win, draw, away win) of every group match not yet played and of the next knockout round once its line-up is known; exact probabilities from the score matrix |
 | `match_rps_uniform` | the same matches forecast at 1/3 each |
 | `stage_rps` | per team, mean squared error of P(reach r32, r16, qf, sf, final, champion) against what happened; mean over teams. Stages already decided stay in, so compare models at the same origin only |
-| `stage_rps_se` | Monte Carlo error of `stage_rps` |
-| `calibration` | per probability bin: count, mean forecast, observed rate (matches; stages not yet decided) |
+| `*_se` | standard error over matches or teams: how far the score could move with other matches of the same kind. This decides whether a difference between models means anything |
+| `stage_rps_mc_se` | Monte Carlo error of `stage_rps` (draws); far smaller than `stage_rps_se` |
+| `calibration` | per probability bin: count, mean forecast, observed rate and z (gap in standard deviations if the forecasts were right). Read it at one origin |
+
+Late origins have few open matches (8 after the group stage, 1 before the final); their `*_se`
+shows that. Compare models mainly at kickoff and after matchdays 1 and 2.
 
 ```python
 from wcsimfw import evaluate
@@ -112,11 +130,15 @@ e["scores"]          # dict of the scores above
 ```
 
 A run is one TOML file: tournament, origins, draws, seed, device, the model and its parameters,
-each marked `fitted` or `fixed` with its `source`. See `configs/elo_poisson.toml`.
+each marked `fitted` or `fixed` with its `source`. See `configs/` (`elo_poisson.toml`: the dated
+Elo table with hand-set numbers; `elo_fitted.toml`: Elo from the results history, mu and slope
+fitted on World Cup and continental finals before kickoff, needs the data).
 
 ```bash
 uv run python -m wcsimfw.run configs/elo_poisson.toml   # writes runs/elo_poisson-<time>/
+uv run python -m wcsimfw.run compare runs/A runs/B      # B - A per origin, paired, with errors
 ```
 
-The run folder holds the config, `meta.json` (git commit, data revision, versions, device,
-seconds per origin) and Parquet tables `scores`, `stages`, `matches`, `calibration`.
+The run folder holds the config, `meta.json` (git commit, sha256 of each input file, the data
+revision when the data were read, fitted values with standard errors, versions, device, seconds
+per origin) and Parquet tables `scores`, `stages`, `matches`, `calibration`.

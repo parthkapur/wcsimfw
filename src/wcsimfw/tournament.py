@@ -64,19 +64,20 @@ class Tournament:
             annex=annex, annex_winners=winners, results=res["matches"],
         )
 
+    def played(self, after: str | None) -> list[dict]:
+        """Matches played by an origin, in date order. `after` is None (kickoff) or a stage in
+        ORDER, e.g. "md2" or "r16"."""
+        last = -1 if after is None else ORDER.index(after)
+        return sorted((m for m in self.results
+                       if _stage(m) in ORDER and ORDER.index(_stage(m)) <= last),
+                      key=lambda m: m["kickoff_utc"])
+
     def held(self, after: str | None) -> tuple[dict[int, tuple[int, int]], dict[int, int]]:
-        """Played results held fixed at an origin: group fixture -> goals, match -> winner.
-        `after` is None (kickoff) or a stage in ORDER, e.g. "md2" or "r16"."""
-        if after is None:
-            return {}, {}
-        last = ORDER.index(after)
+        """Played results held fixed at an origin: group fixture -> goals, match -> winner."""
         idx = {t: i for i, t in enumerate(self.teams)}
         pairs = {tuple(f): i for i, f in enumerate(self.fixtures.tolist())}
         goals, wins = {}, {}
-        for m in self.results:
-            stage = f"md{m['matchday']}" if m["stage"] == "group" else m["stage"]
-            if stage not in ORDER or ORDER.index(stage) > last:
-                continue
+        for m in self.played(after):
             h, a = idx[m["home"]], idx[m["away"]]
             if m["stage"] == "group":
                 goals[pairs[h, a]] = tuple(m["goals_90"])
@@ -84,6 +85,10 @@ class Tournament:
                 g = m["penalties"] or m["goals_120"] or m["goals_90"]
                 wins[m["match"]] = h if g[0] > g[1] else a
         return goals, wins
+
+
+def _stage(m: dict) -> str:
+    return f"md{m['matchday']}" if m["stage"] == "group" else m["stage"]
 
 
 def _lexsort_desc(keys: list[Tensor]) -> Tensor:

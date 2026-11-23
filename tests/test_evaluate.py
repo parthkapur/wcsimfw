@@ -31,9 +31,14 @@ def test_match_scores_known_values():
 
 def test_calibration_bins():
     c = ev.calibration(torch.tensor([0.05, 0.15, 0.95, 1.0]), torch.tensor([0, 1, 1, 0]))
-    assert c[0].tolist() == pytest.approx([1, 0.05, 0])
-    assert c[9].tolist() == pytest.approx([2, 0.975, 0.5])
+    assert c[0].tolist() == pytest.approx([1, 0.05, 0, -0.05 / 0.0475**0.5])
+    assert c[9, :3].tolist() == pytest.approx([2, 0.975, 0.5])
     assert c[:, 0].sum() == 4
+
+
+def test_paired():
+    assert ev.paired(torch.tensor([0.2, 0.3]), torch.tensor([0.1, 0.3])) == pytest.approx(
+        (-0.05, 0.05))
 
 
 def test_perfect_forecast_scores_zero():
@@ -64,9 +69,14 @@ mu = { value = 1.3, kind = "fixed", source = "test" }
     assert {p.name for p in out.iterdir()} >= {"config.toml", "meta.json", "scores.parquet",
                                                "stages.parquet", "matches.parquet",
                                                "calibration.parquet"}
-    assert set(json.loads((out / "meta.json").read_text())["seconds"]) == {"kickoff", "qf"}
+    meta = json.loads((out / "meta.json").read_text())
+    assert set(meta["seconds"]) == {"kickoff", "qf"} and "data_revision" not in meta["inputs"]
+    assert run.compare(out, out)["d_stage_rps"].to_list() == [0, 0]
 
 
-def test_run_rejects_unmarked_param():
+def test_run_rejects_bad_params():
     with pytest.raises(ValueError, match="kind"):
         run.check({"model": {"name": "elo_poisson", "params": {"mu": {"value": 1.3}}}})
+    with pytest.raises(ValueError, match="fit"):
+        run.check({"model": {"name": "elo_poisson",
+                             "params": {"mu": {"kind": "fitted", "source": "x"}}}})

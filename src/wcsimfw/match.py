@@ -6,11 +6,12 @@ penalties.
 Pipeline place: match (strength -> match -> tournament). Every model returns a score matrix
 `[..., G, G]`: entry [i, j] is P(home scores i, away scores j) over 90 minutes, batched over pairs,
 with G = 11 (0 to 10 goals; the mass above 10 goes into the last row and column).
-Numbers: nothing here is fitted. `MU` (goals per team per match between equal sides) and
-`SLOPE` (how fast the rate grows with the Elo gap) are fixed, set by hand; a fit to the 2018
-and 2022 World Cups gives nearly the same slope. Extra time plays at `EXTRA_TIME` of the
-90-minute rate (30 of 90 minutes); the shootout is a coin (`SHOOTOUT`), because shootout skill
-is weak evidence. All are arguments, so a run config can change them.
+Numbers: `MU` (goals per team per match between equal sides) and `SLOPE` (how fast the rate
+grows with the Elo gap) are set by hand by default; `fit_elo_poisson` measures them (and a home
+term) by Poisson maximum likelihood on past matches, with a standard error from the curvature
+of the likelihood (the spread of a flat-prior Bayesian posterior). Extra time plays at
+`EXTRA_TIME` of the 90-minute rate (30 of 90 minutes); the shootout is a coin (`SHOOTOUT`),
+because shootout skill is weak evidence. All are arguments, so a run config can change them.
 """
 
 from __future__ import annotations
@@ -79,3 +80,34 @@ def elo_pairs(elo: Tensor, mu: float = MU, slope: float = SLOPE, extra_time: flo
     rh, ra = elo_rates(elo[:, None], elo[None, :], mu, slope)
     full = poisson(rh, ra)
     return full, advance(full, poisson(rh * extra_time, ra * extra_time), shootout)
+
+
+def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: Tensor
+                    ) -> dict[str, tuple[float, float]]:
+    """Fit log rate = log mu + slope * gap / 400 (+ home_term for a side at home) to goals.
+
+    `gap` is the pre-match Elo gap home - away, `home` 1 if the home side is at home.
+    Returns {"mu", "slope", "home_term"}: (value, standard error)."""
+    x = [torch.as_tensor(v, dtype=torch.float64) for v in (gap, home, goals_home, goals_away)]
+    gap, home, gh, ga = x[0] / 400, *x[1:]
+
+    def nll(th):
+        lh = th[0] + th[1] * gap + th[2] * home
+        la = th[0] - th[1] * gap
+        return (lh.exp() - gh * lh + la.exp() - ga * la).sum()
+
+    th = torch.tensor([0.25, 0.5, 0.2], dtype=torch.float64, requires_grad=True)
+    opt = torch.optim.LBFGS([th], max_iter=200, line_search_fn="strong_wolfe")
+
+    def closure():
+        opt.zero_grad()
+        loss = nll(th)
+        loss.backward()
+        return loss
+
+    opt.step(closure)
+    th = th.detach()
+    se = torch.autograd.functional.hessian(nll, th).inverse().diag().sqrt()
+    mu = th[0].exp().item()
+    return {"mu": (mu, mu * se[0].item()), "slope": (th[1].item(), se[1].item()),
+            "home_term": (th[2].item(), se[2].item())}

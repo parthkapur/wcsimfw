@@ -6,7 +6,9 @@ seed = 0
 device = "cpu"  # or "cuda"
 
 [model]
-name = "elo_poisson"  # Elo from the reference table elo.json (dated before kickoff)
+name = "elo_poisson"
+elo = "reference"  # the dated Elo table of the tournament (elo.json)
+update = false     # true: ratings also play the tournament matches already played
 
 [model.params]
 mu = { value = 1.30, kind = "fixed", source = "goals per team per match between equal sides, set by hand" }

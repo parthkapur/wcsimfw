@@ -1,0 +1,22 @@
+# Elo played forward over the results history up to kickoff (needs the data);
+# mu and slope measured on World Cup and continental finals before kickoff.
+tournament = "wc2026"
+origins = ["kickoff", "md1", "md2", "md3", "r32", "r16", "qf", "sf"]
+draws = 100_000
+seed = 0
+device = "cpu"
+
+[model]
+name = "elo_poisson"
+elo = "history"
+update = false  # true: ratings also play the tournament matches already played (K = 60)
+
+[model.fit]
+since = "2010-01-01"
+matches = "finals"
+
+[model.params]
+mu = { kind = "fitted", source = "Poisson fit, finals since 2010 before kickoff" }
+slope = { kind = "fitted", source = "Poisson fit, finals since 2010 before kickoff" }
+extra_time = { value = 0.3333333333333333, kind = "fixed", source = "30 of 90 minutes at the same rate" }
+shootout = { value = 0.5, kind = "fixed", source = "coin: shootout skill is weak evidence" }

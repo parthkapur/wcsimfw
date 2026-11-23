@@ -15,9 +15,17 @@ Numbers: nothing is fitted. All scores are "lower is better".
 - `stage_rps`: for each of the 48 teams, the mean squared error of P(reach r32, r16, qf, sf,
   final, champion) against 1 or 0, then the mean over teams. Stages already decided at the
   origin stay in (they score 0), so compare models only at the same origin.
-  `stage_rps_se` is its Monte Carlo error.
-- `calibration`: forecasts put in bins of width 1/bins; per bin the count, mean forecast and
-  how often the event happened.
+- Two errors, kept apart. `*_se`: how much the score would move with other matches or teams of
+  the same quality (standard error over matches or teams, taken as independent); this is the
+  error that decides whether one model is better. `stage_rps_mc_se`: Monte Carlo error from a
+  finite number of draws; with the exact knockout it is far smaller and only shows that enough
+  draws were made. To compare two models, use `paired` on their per-match (or per-team) scores:
+  the same matches are scored, so the shared luck cancels.
+  Late origins score few open matches (1 to 8 after the group stage): their `*_se` shows it.
+- `calibration`: forecasts put in bins of width 1/bins; per bin the count, mean forecast,
+  how often the event happened and z = (events - expected events) / sqrt(sum p(1 - p)), the
+  gap in standard deviations if the forecasts were right and the events independent. Read it
+  at one origin: pooled origins count the same matches and teams again.
 """
 
 from __future__ import annotations
@@ -69,18 +77,30 @@ def stage_rps(p: Tensor, truth: Tensor) -> Tensor:
 
 
 def calibration(p: Tensor, y: Tensor, bins: int = 10) -> Tensor:
-    """[bins, 3]: count, mean forecast, observed rate of forecasts p (any shape) of events y."""
-    p, y = p.flatten().double(), y.flatten().double()
+    """[bins, 4]: count, mean forecast, observed rate, z of forecasts p (any shape) of
+    events y. Empty bins give nan."""
+    p, y = p.flatten().double().cpu(), y.flatten().double().cpu()
     b = (p * bins).long().clamp(0, bins - 1)
     n = torch.bincount(b, minlength=bins).double()
-    s = [torch.zeros(bins, dtype=torch.float64).index_add_(0, b, x) for x in (p, y)]
-    return torch.stack([n, s[0] / n, s[1] / n], -1)  # empty bins give nan
+    s = [torch.zeros(bins, dtype=torch.float64).index_add_(0, b, x) for x in (p, y, p * (1 - p))]
+    return torch.stack([n, s[0] / n, s[1] / n, (s[1] - s[0]) / s[2].sqrt()], -1)
+
+
+def paired(a: Tensor, b: Tensor) -> tuple[float, float]:
+    """Mean of b - a over the same matches (or teams) and its standard error."""
+    d = (torch.as_tensor(b) - torch.as_tensor(a)).double()
+    return d.mean().item(), (d.std() / len(d) ** 0.5).item() if len(d) > 1 else float("nan")
+
+
+def _se(x: Tensor) -> float:
+    return (x.std() / len(x) ** 0.5).item() if len(x) > 1 else float("nan")
 
 
 def evaluate(t: Tournament, full: Tensor, adv: Tensor, after: str | None = None,
              n: int = 100_000, seed: int = 0, chunk: int = 50_000) -> dict:
-    """Simulate from an origin and score it. Returns `stages` (the `simulate` output), `matches`
-    (the scored matches with `p` [N, 3]), `scores` (floats) and `calibration` ("match", "stage")."""
+    """Simulate from an origin and score it. Returns `stages` (the `simulate` output plus
+    `reached`), `matches` (the scored matches with `p` and their scores), `teams` (stage RPS per
+    team), `scores` (floats) and `calibration` ("match", "stage")."""
     sim = simulate(t, full, adv, n, seed, after, chunk)
     p, se = sim["exact"], sim["exact_se"]
     truth = reached(t).to(p)
@@ -90,15 +110,19 @@ def evaluate(t: Tournament, full: Tensor, adv: Tensor, after: str | None = None,
     pm = outcome(full[[g["home"] for g in games], [g["away"] for g in games]])
     y = torch.tensor([g["result"] for g in games], device=pm.device)
     per = match_scores(pm, y)
-    scores = {k: v.mean().item() for k, v in per.items()}
-    scores |= {"matches": len(games),
-               "match_rps_uniform": match_scores(torch.full_like(pm, 1 / 3), y)["match_rps"]
+    team = stage_rps(p, truth)
+    scores = {"matches": len(games)}
+    for k, v in per.items():
+        scores |= {k: v.mean().item(), f"{k}_se": _se(v)}
+    scores |= {"match_rps_uniform": match_scores(torch.full_like(pm, 1 / 3), y)["match_rps"]
                .mean().item(),
-               "stage_rps": stage_rps(p, truth).mean().item(), "stage_rps_se": stage_se.item()}
+               "stage_rps": team.mean().item(), "stage_rps_se": _se(team),
+               "stage_rps_mc_se": stage_se.item()}
     open_ = (p > 0) & (p < 1)  # stages not yet decided at the origin
+    rows = [g | {"p": q} | {k: v[i].item() for k, v in per.items()}
+            for i, (g, q) in enumerate(zip(games, pm.tolist(), strict=True))]
     return {
-        "stages": sim, "matches": [g | {"p": q} for g, q in zip(games, pm.tolist(), strict=True)],
-        "scores": scores,
+        "stages": sim | {"reached": truth}, "matches": rows, "teams": team, "scores": scores,
         "calibration": {"match": calibration(pm, torch.nn.functional.one_hot(y, 3)),
                         "stage": calibration(p[open_], truth[open_])},
     }
