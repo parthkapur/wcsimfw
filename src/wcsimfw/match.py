@@ -82,22 +82,26 @@ def elo_pairs(elo: Tensor, mu: float = MU, slope: float = SLOPE, extra_time: flo
     return full, advance(full, poisson(rh * extra_time, ra * extra_time), shootout)
 
 
-def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: Tensor
-                    ) -> dict[str, tuple[float, float]]:
-    """Fit log rate = log mu + slope * gap / 400 (+ home_term for a side at home) to goals.
+def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: Tensor,
+                    squad_gap: Tensor | None = None) -> dict[str, tuple[float, float]]:
+    """Fit log rate = log mu + slope * gap / 400 (+ squad * squad_gap) (+ home_term at home).
 
-    `gap` is the pre-match Elo gap home - away, `home` 1 if the home side is at home.
-    Returns {"mu", "slope", "home_term"}: (value, standard error)."""
+    `gap` is the pre-match Elo gap home - away, `home` 1 if the home side is at home,
+    `squad_gap` the squad-rating gap home - away (optional). Returns {"mu", "slope",
+    "home_term"[, "squad", "squad_weight"]}: (value, standard error). `squad_weight` is the
+    squad term in Elo points per point of squad rating (400 * squad / slope), so a team's
+    rating for `elo_pairs` is elo + squad_weight * squad rating."""
     x = [torch.as_tensor(v, dtype=torch.float64) for v in (gap, home, goals_home, goals_away)]
     gap, home, gh, ga = x[0] / 400, *x[1:]
+    dq = torch.zeros_like(gap) if squad_gap is None else torch.as_tensor(squad_gap).double()
 
     def nll(th):
-        lh = th[0] + th[1] * gap + th[2] * home
-        la = th[0] - th[1] * gap
+        e = th[1] * gap + th[3] * dq
+        lh, la = th[0] + e + th[2] * home, th[0] - e
         return (lh.exp() - gh * lh + la.exp() - ga * la).sum()
 
-    th = torch.tensor([0.25, 0.5, 0.2], dtype=torch.float64, requires_grad=True)
-    opt = torch.optim.LBFGS([th], max_iter=200, line_search_fn="strong_wolfe")
+    th = torch.tensor([0.25, 0.5, 0.0, 0.0], dtype=torch.float64, requires_grad=True)
+    opt = torch.optim.LBFGS([th], max_iter=300, line_search_fn="strong_wolfe")
 
     def closure():
         opt.zero_grad()
@@ -107,7 +111,18 @@ def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: T
 
     opt.step(closure)
     th = th.detach()
-    se = torch.autograd.functional.hessian(nll, th).inverse().diag().sqrt()
+    # only the terms the data can measure: no home term without home matches
+    idx = [0, 1] + [2] * bool(home.any()) + [3] * (squad_gap is not None)
+    cov = torch.full((4, 4), float("nan"), dtype=torch.float64)
+    cov[torch.tensor(idx)[:, None], torch.tensor(idx)] = (
+        torch.autograd.functional.hessian(nll, th)[idx][:, idx].inverse())
+    se = cov.diag().sqrt().tolist()
     mu = th[0].exp().item()
-    return {"mu": (mu, mu * se[0].item()), "slope": (th[1].item(), se[1].item()),
-            "home_term": (th[2].item(), se[2].item())}
+    out = {"mu": (mu, mu * se[0]), "slope": (th[1].item(), se[1]),
+           "home_term": (th[2].item(), se[2])}
+    if squad_gap is not None:
+        b, s = th[3].item(), th[1].item()
+        grad = torch.tensor([-400 * b / s**2, 400 / s], dtype=torch.float64)  # d w / d (s, b)
+        w_se = (grad @ cov[1::2, 1::2] @ grad).sqrt().item()  # delta method, full covariance
+        out |= {"squad": (b, se[3]), "squad_weight": (400 * b / s, w_se)}
+    return out

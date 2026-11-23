@@ -14,6 +14,10 @@ Model `elo_poisson` (see `configs/`):
   before kickoff chosen by `[model.fit]`: `since` (date) and `matches` ("finals": World Cup and
   continental finals; "competitive": no friendlies; "all"). The Elo gaps of the fit come from
   the history, so fit with `elo = "history"` to keep one rating scale.
+- `squad = "sofifa"`: each team's rating is elo + squad_weight x squad rating (`wcsimfw.squad`,
+  the roster dated before kickoff). With `squad` on, the fit uses only matches in the year after
+  an earlier roster (`squad.windows`), with both teams rated, so a fitted `squad_weight` and
+  `squad_weight` fixed at 0 are fitted on the same matches.
 
 Usage:
   python -m wcsimfw.run CONFIG.toml [OUT_DIR]   (default OUT_DIR `runs`)
@@ -40,7 +44,7 @@ from pathlib import Path
 import polars as pl
 import torch
 
-from wcsimfw import data, elo, match
+from wcsimfw import data, elo, match, squad
 from wcsimfw.evaluate import evaluate
 from wcsimfw.reference import load
 from wcsimfw.tournament import STAGES, Tournament
@@ -72,17 +76,38 @@ def check(cfg: dict) -> None:
             raise ValueError(f"param {k!r} needs kind (fitted|fixed) and source")
         if p["kind"] == "fixed" and "value" not in p:
             raise ValueError(f"fixed param {k!r} needs a value")
-        if p["kind"] == "fitted" and (k not in ("mu", "slope") or "fit" not in model):
-            raise ValueError(f"fitted param {k!r}: only mu and slope, with a [model.fit] table")
+        if p["kind"] == "fitted" and (k not in ("mu", "slope", "squad_weight")
+                                      or "fit" not in model):
+            raise ValueError(f"fitted param {k!r}: only mu, slope or squad_weight, "
+                             "with a [model.fit] table")
+    weight = model.get("params", {}).get("squad_weight")
+    if (weight is not None) != (model.get("squad") == "sofifa"):
+        raise ValueError("squad = 'sofifa' and a squad_weight param go together")
+    if weight and weight["kind"] == "fixed" and weight["value"] != 0 and "fit" in model:
+        raise ValueError("a fit with a fixed squad_weight other than 0 is not supported")
 
 
-def strength(cfg: dict, t: Tournament, inputs: dict) -> tuple[dict, dict]:
-    """Ratings at kickoff, and the fitted values (if any) with their standard errors."""
+def _squads(versions, inputs: dict) -> dict[str, dict[str, float]]:
+    for v in versions:
+        f = f"raw/sofifa/acquisition_2026-10-02/{v}/id-asc/records.jsonl"
+        inputs[f] = _sha(data.fetch([f]) / f)
+        inputs["data_revision"] = data.REVISION
+    return {v: squad.ratings(v) for v in versions}
+
+
+def strength(cfg: dict, t: Tournament, inputs: dict) -> tuple[dict, dict, dict]:
+    """Elo ratings at kickoff, the fitted values (if any) with their standard errors, and the
+    squad rating per team at kickoff (empty without `squad`)."""
     model = cfg["model"]
     kickoff = min(m["date"] for m in t.results)
-    fitted = {}
+    fitted, sq = {}, {}
+    on = model.get("squad") == "sofifa"
+    wins = squad.windows(kickoff) if on else []
+    if on:
+        q = _squads({squad.latest(kickoff)} | {v for v, _, _ in wins}, inputs)
+        sq = q[squad.latest(kickoff)]
     if model.get("elo", "reference") == "reference" and "fit" not in model:
-        return load("elo", cfg["tournament"])["ratings"], fitted
+        return load("elo", cfg["tournament"])["ratings"], fitted, sq
     rows = elo.history(kickoff)
     inputs["raw/international_results/results.csv"] = _sha(
         data.fetch(["raw/international_results/*"]) / "raw/international_results/results.csv")
@@ -92,14 +117,23 @@ def strength(cfg: dict, t: Tournament, inputs: dict) -> tuple[dict, dict]:
     since = model.get("fit", {}).get("since", "")
     for m in rows:
         gap = elo.update(ratings, m)
-        if m["date"] >= since and keep(m):
-            sample.append((gap, not m["neutral"], *m["goals"]))
+        if m["date"] < since or not keep(m):
+            continue
+        if not on:
+            sample.append((gap, not m["neutral"], *m["goals"], 0.0))
+            continue
+        for v, start, end in wins:
+            r = q[v]
+            if start <= m["date"] < end and m["home"] in r and m["away"] in r:
+                sample.append((gap, not m["neutral"], *m["goals"], r[m["home"]] - r[m["away"]]))
     if "fit" in model:
-        fitted = match.fit_elo_poisson(*torch.tensor(sample, dtype=torch.float64).T)
+        x = torch.tensor(sample, dtype=torch.float64).T
+        fit_squad = on and model["params"]["squad_weight"]["kind"] == "fitted"
+        fitted = match.fit_elo_poisson(*x[:4], squad_gap=x[4] if fit_squad else None)
         fitted["matches"] = (len(sample), 0.0)
     if model.get("elo", "reference") == "reference":
         ratings = load("elo", cfg["tournament"])["ratings"]
-    return ratings, fitted
+    return ratings, fitted, sq
 
 
 def run(config: Path, out: Path = Path("runs")) -> Path:
@@ -110,9 +144,11 @@ def run(config: Path, out: Path = Path("runs")) -> Path:
     ref = files("wcsimfw.reference").joinpath(cfg["tournament"])
     inputs = {f"reference/{cfg['tournament']}/{n}.json": _sha(ref / f"{n}.json")
               for n in ("format", "teams", "results", "elo")}
-    start, fitted = strength(cfg, t, inputs)
+    start, fitted, sq = strength(cfg, t, inputs)
     params = {k: fitted[k][0] if p["kind"] == "fitted" else p["value"]
               for k, p in cfg["model"].get("params", {}).items()}
+    weight = params.pop("squad_weight", 0.0)
+    bonus = {x: weight * sq[x] for x in t.teams} if sq else {}
 
     folder = out / f"{config.stem}-{datetime.now():%Y%m%d-%H%M%S}"
     folder.mkdir(parents=True)
@@ -124,13 +160,15 @@ def run(config: Path, out: Path = Path("runs")) -> Path:
         after = None if origin == "kickoff" else origin
         r = (elo.ratings(elo.tournament_matches(t.played(after)), start)
              if cfg["model"].get("update") else start)
-        rating = torch.tensor([r[x] for x in t.teams], dtype=torch.float64, device=dev)
+        rating = torch.tensor([r[x] + bonus.get(x, 0.0) for x in t.teams],
+                              dtype=torch.float64, device=dev)
         full, adv = match.elo_pairs(rating, **params)
         e = evaluate(t, full, adv, after, cfg["draws"], cfg["seed"], cfg.get("chunk", 50_000))
         seconds[origin] = round(time.perf_counter() - clock, 2)
         tables["scores"].append({"origin": origin} | e["scores"])
         s = {k: v.cpu() for k, v in e["stages"].items()}
-        tables["stages"] += [{"origin": origin, "team": team, "elo": r[team], "stage": stage,
+        tables["stages"] += [{"origin": origin, "team": team, "elo": r[team],
+                              "squad": sq.get(team), "stage": stage,
                               **{k: s[k][i, j].item() for k in s}}
                              for i, team in enumerate(t.teams) for j, stage in enumerate(STAGES)]
         tables["matches"] += [{"origin": origin, "stage": m["stage"], "home": t.teams[m["home"]],
@@ -145,7 +183,7 @@ def run(config: Path, out: Path = Path("runs")) -> Path:
                                   for b, row in enumerate(c.tolist())]
     for name, rows in tables.items():
         pl.DataFrame(rows).write_parquet(folder / f"{name}.parquet")
-    meta = {"git": _git(), "inputs": inputs, "params": params,
+    meta = {"git": _git(), "inputs": inputs, "params": params | {"squad_weight": weight},
             "fitted": {k: {"value": v, "se": se} for k, (v, se) in fitted.items()},
             "wcsimfw": version("wcsimfw"), "torch": torch.__version__, "device": str(dev),
             "seconds": seconds}

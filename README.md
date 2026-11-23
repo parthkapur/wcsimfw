@@ -106,6 +106,21 @@ r = elo.ratings(elo.tournament_matches(t.played("md2")), r)    # plus the played
 `match.fit_elo_poisson(gap, home, goals_home, goals_away)` measures `mu`, `slope` and a home term
 by Poisson maximum likelihood, each with a standard error.
 
+## Squad rating
+
+`wcsimfw.squad` rates each nation by the mean SoFIFA overall of its best goalkeeper and ten
+best outfield players in a dated roster snapshot (one scale across all leagues).
+
+```python
+from wcsimfw import squad
+q = squad.ratings(squad.latest("2026-06-11"))   # roster dated before kickoff
+squad.windows("2026-06-11")                     # (version, start, end): matches each roster rates
+```
+
+With `squad = "sofifa"` a run rates each team as elo + `squad_weight` x squad rating; the fit
+measures `squad_weight` (Elo points per point of squad rating) with `mu` and `slope` on matches in
+the year after each earlier roster.
+
 ## Evaluation and run configs
 
 `wcsimfw.evaluate` scores a forecast from one origin against the played tournament (all scores:
@@ -132,7 +147,8 @@ e["scores"]          # dict of the scores above
 A run is one TOML file: tournament, origins, draws, seed, device, the model and its parameters,
 each marked `fitted` or `fixed` with its `source`. See `configs/` (`elo_poisson.toml`: the dated
 Elo table with hand-set numbers; `elo_fitted.toml`: Elo from the results history, mu and slope
-fitted on World Cup and continental finals before kickoff, needs the data).
+fitted on World Cup and continental finals before kickoff; `elo_squad.toml`: the same plus the
+squad rating; the last two need the data).
 
 ```bash
 uv run python -m wcsimfw.run configs/elo_poisson.toml   # writes runs/elo_poisson-<time>/
