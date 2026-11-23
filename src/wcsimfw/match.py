@@ -70,3 +70,12 @@ def advance(full: Tensor, extra: Tensor, shootout: float = SHOOTOUT) -> Tensor:
     the same model at `EXTRA_TIME` of each rate); `shootout` is P(home wins the shootout)."""
     f, e = outcome(full), outcome(extra)
     return f[..., 0] + f[..., 1] * (e[..., 0] + e[..., 1] * shootout)
+
+
+def elo_pairs(elo: Tensor, mu: float = MU, slope: float = SLOPE, extra_time: float = EXTRA_TIME,
+              shootout: float = SHOOTOUT) -> tuple[Tensor, Tensor]:
+    """Tournament inputs for teams with Elo `elo` [T]: the score matrix of every pair
+    [T, T, G, G] (row team at home) and P(row team goes through a knockout tie) [T, T]."""
+    rh, ra = elo_rates(elo[:, None], elo[None, :], mu, slope)
+    full = poisson(rh, ra)
+    return full, advance(full, poisson(rh * extra_time, ra * extra_time), shootout)

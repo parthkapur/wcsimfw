@@ -66,3 +66,28 @@ match.advance(m, match.poisson(rh * x, ra * x))   # P(home goes through a knocko
 | `SLOPE` | 0.54 | log goal rate per 400 Elo points of gap (fixed) |
 | `EXTRA_TIME` | 1/3 | extra-time goal rate as a share of the 90-minute rate (fixed) |
 | `SHOOTOUT` | 0.5 | P(home wins a shootout) (fixed) |
+
+## Tournament
+
+`wcsimfw.tournament` plays the whole tournament `n` times as batched tensors: group matches from
+the score matrices, tables ranked by the competition rules (points, then head-to-head, then goal
+difference and goals; the FIFA ranking stands in for team conduct), the best thirds placed by
+Annexe C, then the knockout. Matches already played keep their real result.
+
+```python
+import torch
+from wcsimfw import match, tournament
+from wcsimfw.reference import load
+
+t = tournament.Tournament.load("wc2026")
+elo = torch.tensor([load("elo")["ratings"][team] for team in t.teams], dtype=torch.float64)
+full, adv = match.elo_pairs(elo)                    # all pairs: score matrix, P(goes through)
+out = tournament.simulate(t, full, adv, n=100_000, after="md2")  # origin: after matchday 2
+out["exact"]        # [48, 6] P(reach r32, r16, qf, sf, final, champion), order of t.teams
+out["exact_se"]     # Monte Carlo standard error
+```
+
+Origins (`after`): `None` (kickoff), `md1`, `md2`, `md3`, `r32`, `r16`, `qf`, `sf`, `final`.
+`mc` draws every knockout tie; `exact` computes the knockout by recursion over the bracket for each
+simulated round-of-32 line-up. Both use the same line-ups and agree within Monte Carlo error;
+`exact` has the smaller error. `exact[:, k] / exact[:, 0]` is P(reach stage k | left the group).
