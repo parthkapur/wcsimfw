@@ -91,3 +91,32 @@ Origins (`after`): `None` (kickoff), `md1`, `md2`, `md3`, `r32`, `r16`, `qf`, `s
 `mc` draws every knockout tie; `exact` computes the knockout by recursion over the bracket for each
 simulated round-of-32 line-up. Both use the same line-ups and agree within Monte Carlo error;
 `exact` has the smaller error. `exact[:, k] / exact[:, 0]` is P(reach stage k | left the group).
+
+## Evaluation and run configs
+
+`wcsimfw.evaluate` scores a forecast from one origin against the played tournament (all scores:
+lower is better).
+
+| Score | On what |
+|---|---|
+| `match_rps`, `brier`, `log_score` | 90-minute result (home win, draw, away win) of every group match not yet played and of the next knockout round once its line-up is known; exact probabilities from the score matrix |
+| `match_rps_uniform` | the same matches forecast at 1/3 each |
+| `stage_rps` | per team, mean squared error of P(reach r32, r16, qf, sf, final, champion) against what happened; mean over teams. Stages already decided stay in, so compare models at the same origin only |
+| `stage_rps_se` | Monte Carlo error of `stage_rps` |
+| `calibration` | per probability bin: count, mean forecast, observed rate (matches; stages not yet decided) |
+
+```python
+from wcsimfw import evaluate
+e = evaluate.evaluate(t, full, adv, after="md1", n=100_000)
+e["scores"]          # dict of the scores above
+```
+
+A run is one TOML file: tournament, origins, draws, seed, device, the model and its parameters,
+each marked `fitted` or `fixed` with its `source`. See `configs/elo_poisson.toml`.
+
+```bash
+uv run python -m wcsimfw.run configs/elo_poisson.toml   # writes runs/elo_poisson-<time>/
+```
+
+The run folder holds the config, `meta.json` (git commit, data revision, versions, device,
+seconds per origin) and Parquet tables `scores`, `stages`, `matches`, `calibration`.
