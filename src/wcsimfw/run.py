@@ -14,10 +14,14 @@ Model `elo_poisson` (see `configs/`):
   before kickoff chosen by `[model.fit]`: `since` (date) and `matches` ("finals": World Cup and
   continental finals; "competitive": no friendlies; "all"). The Elo gaps of the fit come from
   the history, so fit with `elo = "history"` to keep one rating scale.
-- `squad = "sofifa"`: each team's rating is elo + squad_weight x squad rating (`wcsimfw.squad`,
-  the roster dated before kickoff). With `squad` on, the fit uses only matches in the year after
-  an earlier roster (`squad.windows`), with both teams rated, so a fitted `squad_weight` and
-  `squad_weight` fixed at 0 are fitted on the same matches.
+- `[model.players]` (settings of `players.team_features`, e.g. `source = "sofifa"`): team
+  features from each registered squad (processed `players` tables). mu, slope and the feature
+  weights (param `features`) are fitted together on the matches of the earlier tournaments in
+  those tables, with Elo from the history; the features give each team an attack and a defence.
+
+Model `possession_chain` (`wcsimfw.chain`): goal rates from a possession Markov chain in the
+Elo gap; the chain (param `chain`, fitted) is measured on the moves of the earlier tournaments
+in the processed `possessions` tables, with Elo from the history (`elo = "history"`).
 
 Usage:
   python -m wcsimfw.run CONFIG.toml [OUT_DIR]   (default OUT_DIR `runs`)
@@ -44,12 +48,15 @@ from pathlib import Path
 import polars as pl
 import torch
 
-from wcsimfw import data, elo, match, squad
+from wcsimfw import chain, data, elo, match
+from wcsimfw import players as P
 from wcsimfw.evaluate import evaluate
+from wcsimfw.pipelines import players as pipeline
+from wcsimfw.pipelines import possessions
 from wcsimfw.reference import load
 from wcsimfw.tournament import STAGES, Tournament
 
-MODELS = {"elo_poisson"}
+MODELS = {"elo_poisson", "possession_chain"}
 FIT = {"finals": lambda m: elo.k_factor(m["competition"]) >= 50,
        "competitive": lambda m: m["competition"] != "Friendly", "all": lambda m: True}
 
@@ -76,38 +83,77 @@ def check(cfg: dict) -> None:
             raise ValueError(f"param {k!r} needs kind (fitted|fixed) and source")
         if p["kind"] == "fixed" and "value" not in p:
             raise ValueError(f"fixed param {k!r} needs a value")
-        if p["kind"] == "fitted" and (k not in ("mu", "slope", "squad_weight")
-                                      or "fit" not in model):
-            raise ValueError(f"fitted param {k!r}: only mu, slope or squad_weight, "
-                             "with a [model.fit] table")
-    weight = model.get("params", {}).get("squad_weight")
-    if (weight is not None) != (model.get("squad") == "sofifa"):
-        raise ValueError("squad = 'sofifa' and a squad_weight param go together")
-    if weight and weight["kind"] == "fixed" and weight["value"] != 0 and "fit" in model:
-        raise ValueError("a fit with a fixed squad_weight other than 0 is not supported")
+        if p["kind"] == "fitted" and k not in ("mu", "slope", "features", "chain"):
+            raise ValueError(f"fitted param {k!r}: only mu, slope, features or chain")
+    params = model.get("params", {})
+    if model["name"] == "possession_chain":
+        if (model.get("elo") != "history" or "fit" in model or "players" in model
+                or params.get("chain", {}).get("kind") != "fitted"
+                or set(params) - {"chain", "extra_time", "shootout"}):
+            raise ValueError("possession_chain: elo = 'history', a fitted `chain` param, "
+                             "only extra_time and shootout besides")
+        return
+    if "chain" in params:
+        raise ValueError("the `chain` param belongs to model possession_chain")
+    fitted = any(p["kind"] == "fitted" for p in params.values())
+    if "players" in model:
+        if "fit" in model or any(params.get(k, {}).get("kind") != "fitted"
+                                 for k in ("mu", "slope", "features")):
+            raise ValueError("[model.players] fits mu, slope and features together "
+                             "(no [model.fit])")
+    elif "features" in params or (fitted and "fit" not in model):
+        raise ValueError("fitted mu or slope need [model.fit]; features need [model.players]")
 
 
-def _squads(versions, inputs: dict) -> dict[str, dict[str, float]]:
-    for v in versions:
-        f = f"raw/sofifa/acquisition_2026-10-02/{v}/id-asc/records.jsonl"
-        inputs[f] = _sha(data.fetch([f]) / f)
-        inputs["data_revision"] = data.REVISION
-    return {v: squad.ratings(v) for v in versions}
+def _players(cfg: dict, kickoff: str, inputs: dict) -> tuple[dict, tuple[dict, dict]]:
+    """Fit on earlier tournaments; attack and defence (log-rate offsets) per team now."""
+    tab = {n: pipeline.load(n) for n in ("players", "form", "matches")}
+    inputs["processed/players/manifest.json"] = _sha(
+        data.data_dir() / "processed/players/manifest.json")
+    feats = P.team_features(tab["players"], tab["form"], **cfg["model"]["players"])
+    train = P.with_elo(tab["matches"].filter(pl.col("date") < kickoff))
+    kept, x, names = P.design(train, feats)
+    fitted = match.fit_elo_poisson(*x.values(), names=names)
+    fitted["matches"] = (kept.height, 0.0)
+    now = {r["team"]: r for r in feats.filter(pl.col("tournament") == cfg["tournament"]).to_dicts()}
+
+    def offset(cols):
+        return {team: sum(fitted[c][0] * r[c] for c in cols) for team, r in now.items()}
+
+    att = offset([c for c in names if not c.startswith("def_")])
+    dfn = offset([c for c in names if c.startswith("def_")]) if "def_q" in names else att
+    return fitted, (att, dfn)
 
 
-def strength(cfg: dict, t: Tournament, inputs: dict) -> tuple[dict, dict, dict]:
+def _chain(kickoff: str, inputs: dict) -> tuple[dict, dict]:
+    """Fit the possession chain on the tournaments before kickoff."""
+    m = P.with_elo(possessions.load("matches").filter(pl.col("date") < kickoff))
+    inputs["processed/possessions/manifest.json"] = _sha(
+        data.data_dir() / "processed/possessions/manifest.json")
+    ids = m["match_id"].implode()
+    moves = possessions.load("moves").filter(pl.col("match_id").is_in(ids))
+    x = chain.counts(moves, possessions.load("starts").filter(pl.col("match_id").is_in(ids)),
+                     chain.team_gaps(m))
+    theta, cov = chain.fit(*x)
+    n, own = chain.constants(m, moves)
+    rate = [n * own * chain.goal_per_possession(theta, torch.tensor(g)).item() for g in (0., 200.)]
+    fitted = {"matches": (m.height, 0.0), "possessions": (n, 0.0), "own_goals": (own, 0.0),
+              "goals_at_gap_0": (rate[0], float("nan")),
+              "goals_ratio_per_200": (rate[1] / rate[0], float("nan")),
+              "chain": (theta.tolist(), cov.diag().sqrt().tolist())}
+    return fitted, {"theta": theta, "n": n, "own_goals": own}
+
+
+def strength(cfg: dict, t: Tournament, inputs: dict) -> tuple[dict, dict, tuple[dict, dict]]:
     """Elo ratings at kickoff, the fitted values (if any) with their standard errors, and the
-    squad rating per team at kickoff (empty without `squad`)."""
+    attack and defence offsets per team (empty without `[model.players]`)."""
     model = cfg["model"]
     kickoff = min(m["date"] for m in t.results)
-    fitted, sq = {}, {}
-    on = model.get("squad") == "sofifa"
-    wins = squad.windows(kickoff) if on else []
-    if on:
-        q = _squads({squad.latest(kickoff)} | {v for v, _, _ in wins}, inputs)
-        sq = q[squad.latest(kickoff)]
+    fitted, off = {}, ({}, {})
+    if "players" in model:
+        fitted, off = _players(cfg, kickoff, inputs)
     if model.get("elo", "reference") == "reference" and "fit" not in model:
-        return load("elo", cfg["tournament"])["ratings"], fitted, sq
+        return load("elo", cfg["tournament"])["ratings"], fitted, off
     rows = elo.history(kickoff)
     inputs["raw/international_results/results.csv"] = _sha(
         data.fetch(["raw/international_results/*"]) / "raw/international_results/results.csv")
@@ -117,23 +163,14 @@ def strength(cfg: dict, t: Tournament, inputs: dict) -> tuple[dict, dict, dict]:
     since = model.get("fit", {}).get("since", "")
     for m in rows:
         gap = elo.update(ratings, m)
-        if m["date"] < since or not keep(m):
-            continue
-        if not on:
-            sample.append((gap, not m["neutral"], *m["goals"], 0.0))
-            continue
-        for v, start, end in wins:
-            r = q[v]
-            if start <= m["date"] < end and m["home"] in r and m["away"] in r:
-                sample.append((gap, not m["neutral"], *m["goals"], r[m["home"]] - r[m["away"]]))
+        if m["date"] >= since and keep(m):
+            sample.append((gap, not m["neutral"], *m["goals"]))
     if "fit" in model:
-        x = torch.tensor(sample, dtype=torch.float64).T
-        fit_squad = on and model["params"]["squad_weight"]["kind"] == "fitted"
-        fitted = match.fit_elo_poisson(*x[:4], squad_gap=x[4] if fit_squad else None)
+        fitted = match.fit_elo_poisson(*torch.tensor(sample, dtype=torch.float64).T)
         fitted["matches"] = (len(sample), 0.0)
     if model.get("elo", "reference") == "reference":
         ratings = load("elo", cfg["tournament"])["ratings"]
-    return ratings, fitted, sq
+    return ratings, fitted, off
 
 
 def run(config: Path, out: Path = Path("runs")) -> Path:
@@ -144,11 +181,20 @@ def run(config: Path, out: Path = Path("runs")) -> Path:
     ref = files("wcsimfw.reference").joinpath(cfg["tournament"])
     inputs = {f"reference/{cfg['tournament']}/{n}.json": _sha(ref / f"{n}.json")
               for n in ("format", "teams", "results", "elo")}
-    start, fitted, sq = strength(cfg, t, inputs)
+    start, fitted, (att, dfn) = strength(cfg, t, inputs)
+    fit_chain = {}
+    if cfg["model"]["name"] == "possession_chain":
+        more, fit_chain = _chain(min(m["date"] for m in t.results), inputs)
+        fitted |= more
     params = {k: fitted[k][0] if p["kind"] == "fitted" else p["value"]
-              for k, p in cfg["model"].get("params", {}).items()}
-    weight = params.pop("squad_weight", 0.0)
-    bonus = {x: weight * sq[x] for x in t.teams} if sq else {}
+              for k, p in cfg["model"].get("params", {}).items() if k not in ("features", "chain")}
+    offsets = {}
+    if att:
+        missing = [x for x in t.teams if x not in att]
+        if missing:
+            raise ValueError(f"no player features for {missing}")
+        offsets = {k: torch.tensor([v[x] for x in t.teams], dtype=torch.float64, device=dev)
+                   for k, v in (("attack", att), ("defence", dfn))}
 
     folder = out / f"{config.stem}-{datetime.now():%Y%m%d-%H%M%S}"
     folder.mkdir(parents=True)
@@ -160,15 +206,15 @@ def run(config: Path, out: Path = Path("runs")) -> Path:
         after = None if origin == "kickoff" else origin
         r = (elo.ratings(elo.tournament_matches(t.played(after)), start)
              if cfg["model"].get("update") else start)
-        rating = torch.tensor([r[x] + bonus.get(x, 0.0) for x in t.teams],
-                              dtype=torch.float64, device=dev)
-        full, adv = match.elo_pairs(rating, **params)
+        rating = torch.tensor([r[x] for x in t.teams], dtype=torch.float64, device=dev)
+        full, adv = (chain.pairs(rating, **fit_chain, **params) if fit_chain
+                     else match.elo_pairs(rating, **params, **offsets))
         e = evaluate(t, full, adv, after, cfg["draws"], cfg["seed"], cfg.get("chunk", 50_000))
         seconds[origin] = round(time.perf_counter() - clock, 2)
         tables["scores"].append({"origin": origin} | e["scores"])
         s = {k: v.cpu() for k, v in e["stages"].items()}
         tables["stages"] += [{"origin": origin, "team": team, "elo": r[team],
-                              "squad": sq.get(team), "stage": stage,
+                              "attack": att.get(team), "defence": dfn.get(team), "stage": stage,
                               **{k: s[k][i, j].item() for k in s}}
                              for i, team in enumerate(t.teams) for j, stage in enumerate(STAGES)]
         tables["matches"] += [{"origin": origin, "stage": m["stage"], "home": t.teams[m["home"]],
@@ -183,7 +229,7 @@ def run(config: Path, out: Path = Path("runs")) -> Path:
                                   for b, row in enumerate(c.tolist())]
     for name, rows in tables.items():
         pl.DataFrame(rows).write_parquet(folder / f"{name}.parquet")
-    meta = {"git": _git(), "inputs": inputs, "params": params | {"squad_weight": weight},
+    meta = {"git": _git(), "inputs": inputs, "params": params,
             "fitted": {k: {"value": v, "se": se} for k, (v, se) in fitted.items()},
             "wcsimfw": version("wcsimfw"), "torch": torch.__version__, "device": str(dev),
             "seconds": seconds}
@@ -224,7 +270,8 @@ def main() -> None:
         print(pl.read_parquet(folder / "scores.parquet").select(
             "origin", "matches", "match_rps", "match_rps_se", "log_score", "stage_rps",
             "stage_rps_se", "stage_rps_mc_se"))
-        print(json.loads((folder / "meta.json").read_text())["fitted"] or "")
+        fitted = json.loads((folder / "meta.json").read_text())["fitted"]
+        print({k: v for k, v in fitted.items() if not isinstance(v["value"], list)} or "")
         print(folder)
 
 

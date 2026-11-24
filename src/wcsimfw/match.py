@@ -7,11 +7,12 @@ Pipeline place: match (strength -> match -> tournament). Every model returns a s
 `[..., G, G]`: entry [i, j] is P(home scores i, away scores j) over 90 minutes, batched over pairs,
 with G = 11 (0 to 10 goals; the mass above 10 goes into the last row and column).
 Numbers: `MU` (goals per team per match between equal sides) and `SLOPE` (how fast the rate
-grows with the Elo gap) are set by hand by default; `fit_elo_poisson` measures them (and a home
-term) by Poisson maximum likelihood on past matches, with a standard error from the curvature
-of the likelihood (the spread of a flat-prior Bayesian posterior). Extra time plays at
-`EXTRA_TIME` of the 90-minute rate (30 of 90 minutes); the shootout is a coin (`SHOOTOUT`),
-because shootout skill is weak evidence. All are arguments, so a run config can change them.
+grows with the Elo gap) are set by hand by default; `fit_poisson` measures them (with a home
+term and any team features) by Poisson maximum likelihood on past matches, with a standard error
+from the curvature of the likelihood (the spread of a flat-prior Bayesian posterior). Extra
+time plays at `EXTRA_TIME` of the 90-minute rate (30 of 90 minutes); the shootout is a coin
+(`SHOOTOUT`), because shootout skill is weak evidence. All are arguments, so a run config can
+change them.
 """
 
 from __future__ import annotations
@@ -74,34 +75,52 @@ def advance(full: Tensor, extra: Tensor, shootout: float = SHOOTOUT) -> Tensor:
 
 
 def elo_pairs(elo: Tensor, mu: float = MU, slope: float = SLOPE, extra_time: float = EXTRA_TIME,
-              shootout: float = SHOOTOUT) -> tuple[Tensor, Tensor]:
+              shootout: float = SHOOTOUT, attack: Tensor | None = None,
+              defence: Tensor | None = None) -> tuple[Tensor, Tensor]:
     """Tournament inputs for teams with Elo `elo` [T]: the score matrix of every pair
-    [T, T, G, G] (row team at home) and P(row team goes through a knockout tie) [T, T]."""
+    [T, T, G, G] (row team at home) and P(row team goes through a knockout tie) [T, T].
+    `attack` and `defence` [T] (log-rate offsets from team features, e.g. `players`): a side's
+    rate grows with its attack and falls with the other side's defence."""
     rh, ra = elo_rates(elo[:, None], elo[None, :], mu, slope)
+    if attack is not None:
+        rh = rh * torch.exp(attack[:, None] - defence[None, :])
+        ra = ra * torch.exp(attack[None, :] - defence[:, None])
     full = poisson(rh, ra)
     return full, advance(full, poisson(rh * extra_time, ra * extra_time), shootout)
 
 
-def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: Tensor,
-                    squad_gap: Tensor | None = None) -> dict[str, tuple[float, float]]:
-    """Fit log rate = log mu + slope * gap / 400 (+ squad * squad_gap) (+ home_term at home).
+def poisson_nll(theta: Tensor, gap: Tensor, home: Tensor, goals_home: Tensor,
+                goals_away: Tensor, x_home: Tensor | None = None,
+                x_away: Tensor | None = None) -> Tensor:
+    """Per-match negative log-likelihood of both scores (constant log k! terms left out).
 
-    `gap` is the pre-match Elo gap home - away, `home` 1 if the home side is at home,
-    `squad_gap` the squad-rating gap home - away (optional). Returns {"mu", "slope",
-    "home_term"[, "squad", "squad_weight"]}: (value, standard error). `squad_weight` is the
-    squad term in Elo points per point of squad rating (400 * squad / slope), so a team's
-    rating for `elo_pairs` is elo + squad_weight * squad rating."""
-    x = [torch.as_tensor(v, dtype=torch.float64) for v in (gap, home, goals_home, goals_away)]
-    gap, home, gh, ga = x[0] / 400, *x[1:]
-    dq = torch.zeros_like(gap) if squad_gap is None else torch.as_tensor(squad_gap).double()
+    log rate home = log mu + slope * gap / 400 + home_term * home + x_home @ beta
+    log rate away = log mu - slope * gap / 400 + x_away @ beta
+    with theta = (log mu, slope, home_term, beta...)."""
+    lh = theta[0] + theta[1] * gap / 400 + theta[2] * home
+    la = theta[0] - theta[1] * gap / 400
+    if x_home is not None:
+        lh, la = lh + x_home @ theta[3:], la + x_away @ theta[3:]
+    return lh.exp() - goals_home * lh + la.exp() - goals_away * la
+
+
+def fit_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: Tensor,
+                x_home: Tensor | None = None, x_away: Tensor | None = None
+                ) -> tuple[Tensor, Tensor]:
+    """Maximum-likelihood theta of `poisson_nll` and its covariance (inverse curvature: the
+    spread of a flat-prior Bayesian posterior). Terms the data cannot measure (no home matches)
+    stay at 0 with nan error."""
+    args = [torch.as_tensor(v, dtype=torch.float64) for v in (gap, home, goals_home, goals_away)]
+    xs = [None if x is None else torch.as_tensor(x, dtype=torch.float64) for x in (x_home, x_away)]
+    k = 0 if xs[0] is None else xs[0].shape[1]
 
     def nll(th):
-        e = th[1] * gap + th[3] * dq
-        lh, la = th[0] + e + th[2] * home, th[0] - e
-        return (lh.exp() - gh * lh + la.exp() - ga * la).sum()
+        return poisson_nll(th, *args, *xs).sum()
 
-    th = torch.tensor([0.25, 0.5, 0.0, 0.0], dtype=torch.float64, requires_grad=True)
-    opt = torch.optim.LBFGS([th], max_iter=300, line_search_fn="strong_wolfe")
+    th = torch.zeros(3 + k, dtype=torch.float64)
+    th[:2] = torch.tensor([0.25, 0.5])
+    th.requires_grad_(True)
+    opt = torch.optim.LBFGS([th], max_iter=500, line_search_fn="strong_wolfe")
 
     def closure():
         opt.zero_grad()
@@ -111,18 +130,19 @@ def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: T
 
     opt.step(closure)
     th = th.detach()
-    # only the terms the data can measure: no home term without home matches
-    idx = [0, 1] + [2] * bool(home.any()) + [3] * (squad_gap is not None)
-    cov = torch.full((4, 4), float("nan"), dtype=torch.float64)
-    cov[torch.tensor(idx)[:, None], torch.tensor(idx)] = (
-        torch.autograd.functional.hessian(nll, th)[idx][:, idx].inverse())
+    idx = torch.tensor([0, 1] + [2] * bool(args[1].any()) + list(range(3, 3 + k)))
+    cov = torch.full((3 + k, 3 + k), float("nan"), dtype=torch.float64)
+    cov[idx[:, None], idx] = torch.autograd.functional.hessian(nll, th)[idx][:, idx].inverse()
+    return th, cov
+
+
+def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: Tensor,
+                    x_home: Tensor | None = None, x_away: Tensor | None = None,
+                    names: list[str] | None = None) -> dict[str, tuple[float, float]]:
+    """`fit_poisson` as {"mu", "slope", "home_term", *names}: (value, standard error)."""
+    th, cov = fit_poisson(gap, home, goals_home, goals_away, x_home, x_away)
     se = cov.diag().sqrt().tolist()
     mu = th[0].exp().item()
     out = {"mu": (mu, mu * se[0]), "slope": (th[1].item(), se[1]),
            "home_term": (th[2].item(), se[2])}
-    if squad_gap is not None:
-        b, s = th[3].item(), th[1].item()
-        grad = torch.tensor([-400 * b / s**2, 400 / s], dtype=torch.float64)  # d w / d (s, b)
-        w_se = (grad @ cov[1::2, 1::2] @ grad).sqrt().item()  # delta method, full covariance
-        out |= {"squad": (b, se[3]), "squad_weight": (400 * b / s, w_se)}
-    return out
+    return out | {n: (th[3 + i].item(), se[3 + i]) for i, n in enumerate(names or [])}

@@ -1,0 +1,23 @@
+# Elo from the results history plus the registered squads' players (SoFIFA overall of the
+# eleven, dated before kickoff); mu, slope and the player weight fitted together on the matches
+# of earlier tournaments with registered squads (needs the data).
+tournament = "wc2026"
+origins = ["kickoff", "md1", "md2", "md3", "r32", "r16", "qf", "sf"]
+draws = 100_000
+seed = 0
+device = "cpu"
+
+[model]
+name = "elo_poisson"
+elo = "history"
+update = false
+
+[model.players]
+source = "sofifa"  # or "rating"; also tau, top, split, halflife (see wcsimfw.players)
+
+[model.params]
+mu = { kind = "fitted", source = "Poisson fit on earlier tournaments with registered squads" }
+slope = { kind = "fitted", source = "same fit" }
+features = { kind = "fitted", source = "same fit: log-rate per point of the eleven's mean overall" }
+extra_time = { value = 0.3333333333333333, kind = "fixed", source = "30 of 90 minutes at the same rate" }
+shootout = { value = 0.5, kind = "fixed", source = "coin: shootout skill is weak evidence" }

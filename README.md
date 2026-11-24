@@ -106,20 +106,39 @@ r = elo.ratings(elo.tournament_matches(t.played("md2")), r)    # plus the played
 `match.fit_elo_poisson(gap, home, goals_home, goals_away)` measures `mu`, `slope` and a home term
 by Poisson maximum likelihood, each with a standard error.
 
-## Squad rating
+## Players
 
-`wcsimfw.squad` rates each nation by the mean SoFIFA overall of its best goalkeeper and ten
-best outfield players in a dated roster snapshot (one scale across all leagues).
+`wcsimfw.pipelines.players` builds three processed tables from the raw data
+(`$WCSIMFW_DATA/processed/players/`, with a manifest): each tournament's registered squads with
+every player's season match rating, minutes, minutes in the five big leagues and the Champions
+League, and SoFIFA overall (all from before kickoff); club form matches before kickoff; and the
+tournament matches.
 
-```python
-from wcsimfw import squad
-q = squad.ratings(squad.latest("2026-06-11"))   # roster dated before kickoff
-squad.windows("2026-06-11")                     # (version, start, end): matches each roster rates
+```bash
+uv run python -m wcsimfw.pipelines.players   # build (also built on first use)
 ```
 
-With `squad = "sofifa"` a run rates each team as elo + `squad_weight` x squad rating; the fit
-measures `squad_weight` (Elo points per point of squad rating) with `mu` and `slope` on matches in
-the year after each earlier roster.
+`wcsimfw.players` turns a squad into team features: the eleven (goalkeeper and ten outfield
+players), each player's value from `source` ("rating" or "sofifa"), with optional minutes prior
+(`tau`), competition share (`top`), attack/defence split (`split`) and recency (`halflife`).
+`players.design` and `match.fit_poisson` fit the weights; in the match model each team gets an
+attack and a defence (`match.elo_pairs(..., attack=, defence=)`).
+
+## Possession chain
+
+`wcsimfw.pipelines.possessions` counts, from national-team event data, how each possession moved:
+own third (B), middle (M), final third (F), shot (S), and how it ended (goal, miss, lost ball).
+`wcsimfw.chain` fits these moves as an absorbing Markov chain whose probabilities depend on the
+Elo gap, and gives P(goal | possession) from the fundamental matrix (I - Q)^-1.
+
+```python
+from wcsimfw import chain
+p = chain.goal_per_possession(theta, gap=torch.tensor(200.0))  # a side 200 Elo points better
+full, adv = chain.pairs(elo, theta, n=179.3, own_goals=1.04)   # same outputs as elo_pairs
+```
+
+Model `possession_chain` in a run config fits the chain on the tournaments before kickoff
+(`configs/possession_chain.toml`).
 
 ## Evaluation and run configs
 
@@ -147,8 +166,9 @@ e["scores"]          # dict of the scores above
 A run is one TOML file: tournament, origins, draws, seed, device, the model and its parameters,
 each marked `fitted` or `fixed` with its `source`. See `configs/` (`elo_poisson.toml`: the dated
 Elo table with hand-set numbers; `elo_fitted.toml`: Elo from the results history, mu and slope
-fitted on World Cup and continental finals before kickoff; `elo_squad.toml`: the same plus the
-squad rating; the last two need the data).
+fitted on World Cup and continental finals before kickoff; `elo_players.toml`: history Elo plus
+the registered squads' SoFIFA eleven, fitted on earlier tournaments; `possession_chain.toml`:
+the possession chain; the last three need the data).
 
 ```bash
 uv run python -m wcsimfw.run configs/elo_poisson.toml   # writes runs/elo_poisson-<time>/
