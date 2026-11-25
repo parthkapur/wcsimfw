@@ -41,15 +41,35 @@ def test_features_are_centred_and_split():
     assert set(s.columns) == {"tournament", "team", "att_q", "def_q"}
 
 
-def test_design_tied_and_split():
-    m = pl.DataFrame({"tournament": ["t"], "date": ["2026-06-12"], "home": ["A"], "away": ["B"],
-                      "goals_home": [2], "goals_away": [0], "gap": [100.0], "at_home": [False]})
-    _, x, names = P.design(m, P.team_features(PLAYERS))
-    assert names == ["q"] and x["x_home"].item() == -x["x_away"].item() > 0
-    _, x, names = P.design(m, P.team_features(PLAYERS, split=True))
-    assert names == ["att_q", "def_q"] and x["x_home"].shape == (1, 2)
-    assert x["x_home"][0, 1] == -P.team_features(PLAYERS, split=True).filter(
-        pl.col("team") == "B")["def_q"].item()  # home rate falls with the away defence
+def test_covariates_tied_split_and_missing():
+    table = pl.DataFrame({"tournament": ["t"], "date": ["2026-06-12"], "home": ["A"],
+                          "away": ["B"]})
+    rows = [{"date": "2026-06-12", "home": "A", "away": "B"},
+            {"date": "2026-06-12", "home": "C", "away": "B"},  # not a tournament match
+            {"date": "2020-06-12", "home": "A", "away": "B"}]
+    xh, xa, names, tour = P.covariates(rows, P.team_features(PLAYERS), table)
+    assert names == ["q"] and tour == ["t", None, None]
+    assert xh[0, 0] == -xa[0, 0] > 0 and (xh[1:] == 0).all()
+    split = P.team_features(PLAYERS, split=True)
+    xh, _, names, _ = P.covariates(rows[:1], split, table)
+    assert names == ["att_q", "def_q"]
+    # the home rate falls with the away defence
+    assert xh[0, 1] == -split.filter(pl.col("team") == "B")["def_q"].item()
+
+
+def test_side_without_eleven_has_no_features():
+    few = PLAYERS.filter((pl.col("team") == "A") | (pl.col("player_id") < 8))
+    assert P.team_features(few)["team"].to_list() == ["A"]
+
+
+def test_residuals_take_out_the_rating():
+    f = pl.DataFrame({"tournament": ["t"] * 3, "team": ["A", "B", "C"], "q": [1.0, 0.0, -1.0]})
+    h = [{"date": "2020-01-01", "home": "A", "away": "C", "goals": (1, 0),
+          "competition": "Friendly", "neutral": True}]
+    r = P.residuals(f, {"t": "2021-01-01"}, h, ["t"])  # q is exactly a line in the rating
+    assert r["q"].to_list() == pytest.approx([0.0, 0.0, 0.0])
+    r = P.residuals(f, {"t": "2019-01-01"}, h, ["t"])  # no match played yet: nothing to take out
+    assert r["q"].to_list() == pytest.approx([1.0, 0.0, -1.0])
 
 
 def test_fit_recovers_feature_weights():
@@ -80,21 +100,22 @@ def test_attack_and_defence_offsets():
 
 def test_sofifa_join_by_age_and_name():
     cands = [{"name": "lionel andres messi cuccittini", "short": "l messi", "age": 38,
-              "overall": 86, "date": "2026-06-10"},
+              "overall": 86, "keeper": False, "date": "2026-06-10"},
              {"name": "lionel messi", "short": "l messi", "age": 20, "overall": 60,
-              "date": "2026-06-10"}]
+              "keeper": False, "date": "2026-06-10"}]
     p = {"name": "L. Messi", "firstname": "Lionel Andrés", "lastname": "Messi Cuccittini",
          "birth": "1987-06-24"}
-    assert pipeline._match_sofifa(p, cands) == 86
+    assert pipeline._match_sofifa(p, cands)["overall"] == 86
     assert pipeline._match_sofifa(p | {"name": "X. Other", "firstname": "Xavier",
                                        "lastname": "Other"}, cands) is None
-    assert pipeline.latest("2026-06-11") == "260037" and pipeline.latest("2018-01-01") is None
+    assert "260037" in pipeline.latest("2026-06-11") and pipeline.latest("2010-01-01") is None
+    assert pipeline._iso("1980-5-8") == "1980-05-08" and pipeline._iso("0000-00-00") is None
     assert pipeline.overall("70+2") == 70
 
 
 def test_players_config_rules():
     fit = {"kind": "fitted", "source": "x"}
-    ok = {"name": "elo_poisson", "players": {"source": "sofifa"},
+    ok = {"name": "elo_poisson", "players": {"source": "sofifa"}, "fit": {},
           "params": {"mu": fit, "slope": fit, "features": fit}}
     run.check({"model": ok})
     with pytest.raises(ValueError, match="together"):

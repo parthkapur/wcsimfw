@@ -40,6 +40,6 @@ def test_fit_recovers_known_rates():
     lh = torch.log(torch.tensor(1.2)) + 0.7 * gap / 400 + 0.25 * home
     la = torch.log(torch.tensor(1.2)) - 0.7 * gap / 400
     fit = match.fit_elo_poisson(gap, home, torch.poisson(lh.exp(), g), torch.poisson(la.exp(), g))
-    for k, true in (("mu", 1.2), ("slope", 0.7), ("home_term", 0.25)):
+    for k, true in (("mu", 1.2), ("slope", 0.7), ("home", 0.25)):
         value, se = fit[k]
         assert abs(value - true) < 4 * se and se < 0.05, k

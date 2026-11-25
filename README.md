@@ -90,7 +90,8 @@ out["exact_se"]     # Monte Carlo standard error
 Origins (`after`): `None` (kickoff), `md1`, `md2`, `md3`, `r32`, `r16`, `qf`, `sf`, `final`.
 `mc` draws every knockout tie; `exact` computes the knockout by recursion over the bracket for each
 simulated round-of-32 line-up. Both use the same line-ups and agree within Monte Carlo error;
-`exact` has the smaller error. `exact[:, k] / exact[:, 0]` is P(reach stage k | left the group).
+`exact` has the smaller error. Give `match.elo_pairs` a `host=t.host_bonus(0.21)` and the host
+nations play with a home bonus in their own country (every match knows its country). `exact[:, k] / exact[:, 0]` is P(reach stage k | left the group).
 
 ## Elo strength
 
@@ -103,42 +104,63 @@ r = elo.ratings(elo.history("2026-06-11"))                    # every result bef
 r = elo.ratings(elo.tournament_matches(t.played("md2")), r)    # plus the played World Cup matches
 ```
 
-`match.fit_elo_poisson(gap, home, goals_home, goals_away)` measures `mu`, `slope` and a home term
-by Poisson maximum likelihood, each with a standard error.
+`match.fit_elo_poisson(gap, home, goals_home, goals_away)` measures `mu`, `slope` and `home` (the
+home bonus) by Poisson maximum likelihood, each with a standard error. `match.level(goals,
+expected, prior)` is the goal level of a tournament under way: history counts as `prior` goals
+already seen (a Gamma prior on Poisson goals); `match.fit_level` measures `prior` from past
+tournaments.
 
 ## Players
 
 `wcsimfw.pipelines.players` builds three processed tables from the raw data
-(`$WCSIMFW_DATA/processed/players/`, with a manifest): each tournament's registered squads with
+(`$WCSIMFW_DATA/processed/players-v2/`, with a manifest): each tournament's registered squads with
 every player's season match rating, minutes, minutes in the five big leagues and the Champions
 League, and SoFIFA overall (all from before kickoff); club form matches before kickoff; and the
-tournament matches.
+tournament matches. Processed tables are read from the local cache, else from the dataset, else
+built; their folder name carries a version.
 
 ```bash
-uv run python -m wcsimfw.pipelines.players   # build (also built on first use)
+uv run python -m wcsimfw.pipelines.players   # build
 ```
 
 `wcsimfw.players` turns a squad into team features: the eleven (goalkeeper and ten outfield
 players), each player's value from `source` ("rating" or "sofifa"), with optional minutes prior
 (`tau`), competition share (`top`), attack/defence split (`split`) and recency (`halflife`).
-`players.design` and `match.fit_poisson` fit the weights; in the match model each team gets an
-attack and a defence (`match.elo_pairs(..., attack=, defence=)`).
+`players.residuals` keeps what a squad says beyond its rating, so it corrects the rating and cannot
+replace it. `players.covariates` and `match.fit_poisson` fit the weights on all finals (a side
+without a rated squad counts as its rating says); in the match model each team gets an attack and
+a defence (`match.elo_pairs(..., attack=, defence=)`).
 
 ## Possession chain
 
 `wcsimfw.pipelines.possessions` counts, from national-team event data, how each possession moved:
 own third (B), middle (M), final third (F), shot (S), and how it ended (goal, miss, lost ball).
 `wcsimfw.chain` fits these moves as an absorbing Markov chain whose probabilities depend on the
-Elo gap, and gives P(goal | possession) from the fundamental matrix (I - Q)^-1.
+Elo gap, and gives P(goal | possession) from the fundamental matrix (I - Q)^-1. `chain.style` adds each side's own
+past moves: the factor (K + seen) / (K + expected) per zone and next step, so a side plays as its
+rating says until its own matches show otherwise.
 
 ```python
 from wcsimfw import chain
 p = chain.goal_per_possession(theta, gap=torch.tensor(200.0))  # a side 200 Elo points better
-full, adv = chain.pairs(elo, theta, n=179.3, own_goals=1.04)   # same outputs as elo_pairs
+full, adv = chain.pairs(elo, theta, n=76.5, own_goals=1.04)    # same outputs as elo_pairs
 ```
 
 Model `possession_chain` in a run config fits the chain on the tournaments before kickoff
 (`configs/possession_chain.toml`).
+
+## Determinism
+
+`wcsimfw.determinism` measures how much is decided by who is better, for any sport: `skill_share`
+(share of the variance of results a forecast explains), `series` (best of n), and for a tournament
+the `entropy` of its winner, `contenders` (2^entropy: as open as a cup between that many equal
+sides) and `tournament_share` (1 - entropy / log2 of the number of entrants).
+
+```python
+from wcsimfw import determinism
+p = out["exact"][:, 5]                 # P(champion) from tournament.simulate
+determinism.contenders(p), determinism.tournament_share(p)
+```
 
 ## Evaluation and run configs
 
@@ -165,10 +187,11 @@ e["scores"]          # dict of the scores above
 
 A run is one TOML file: tournament, origins, draws, seed, device, the model and its parameters,
 each marked `fitted` or `fixed` with its `source`. See `configs/` (`elo_poisson.toml`: the dated
-Elo table with hand-set numbers; `elo_fitted.toml`: Elo from the results history, mu and slope
-fitted on World Cup and continental finals before kickoff; `elo_players.toml`: history Elo plus
-the registered squads' SoFIFA eleven, fitted on earlier tournaments; `possession_chain.toml`:
-the possession chain; the last three need the data).
+Elo table with hand-set numbers; `elo_fitted.toml`: Elo from the results history, with mu, slope,
+host bonus and goal level measured on World Cup and continental finals before kickoff;
+`elo_players.toml`: the same plus what each registered squad's SoFIFA eleven says beyond its
+rating; `possession_chain.toml`: the possession chain with team style; the last three need the
+data).
 
 ```bash
 uv run python -m wcsimfw.run configs/elo_poisson.toml   # writes runs/elo_poisson-<time>/

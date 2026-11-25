@@ -9,10 +9,12 @@ with G = 11 (0 to 10 goals; the mass above 10 goes into the last row and column)
 Numbers: `MU` (goals per team per match between equal sides) and `SLOPE` (how fast the rate
 grows with the Elo gap) are set by hand by default; `fit_poisson` measures them (with a home
 term and any team features) by Poisson maximum likelihood on past matches, with a standard error
-from the curvature of the likelihood (the spread of a flat-prior Bayesian posterior). Extra
-time plays at `EXTRA_TIME` of the 90-minute rate (30 of 90 minutes); the shootout is a coin
-(`SHOOTOUT`), because shootout skill is weak evidence. All are arguments, so a run config can
-change them.
+from the curvature of the likelihood (the spread of a flat-prior Bayesian posterior). `host` is
+the home bonus of a host nation in its own country; `level` learns, from the matches already
+played, whether this tournament is a high- or a low-scoring one (`fit_level` measures how much
+tournaments differ). Extra time plays at `EXTRA_TIME` of the 90-minute rate (30 of 90 minutes);
+the shootout is a coin (`SHOOTOUT`), because shootout skill is weak evidence. All are arguments,
+so a run config can change them.
 """
 
 from __future__ import annotations
@@ -74,25 +76,57 @@ def advance(full: Tensor, extra: Tensor, shootout: float = SHOOTOUT) -> Tensor:
     return f[..., 0] + f[..., 1] * (e[..., 0] + e[..., 1] * shootout)
 
 
+def pair_rates(elo: Tensor, mu: float = MU, slope: float = SLOPE, attack: Tensor | None = None,
+               defence: Tensor | None = None) -> Tensor:
+    """Goal rate [T, T] of the row team against the column team. `attack` and `defence` [T]
+    (log-rate offsets from team features, e.g. `players`): a side's rate grows with its attack
+    and falls with the other side's defence."""
+    rate = elo_rates(elo[:, None], elo[None, :], mu, slope)[0]
+    if attack is not None:
+        rate = rate * torch.exp(attack[:, None] - defence[None, :])
+    return rate
+
+
+def pairs(rate: Tensor, extra_time: float = EXTRA_TIME, shootout: float = SHOOTOUT,
+          host: Tensor | None = None) -> tuple[Tensor, Tensor]:
+    """Tournament inputs from goal rates [T, T]: the score matrix of every pair [T, T, G, G]
+    (row team first) and P(row team goes through a knockout tie) [T, T]. `host` [C, T]: log-rate
+    bonus of each team in each place (place 0 is neutral ground, then one per host country); the
+    outputs then have a leading place axis C."""
+    if host is not None:
+        rate = rate * torch.exp(host)[:, :, None]
+    full = poisson(rate, rate.mT)
+    extra = poisson(rate * extra_time, rate.mT * extra_time)
+    return full, advance(full, extra, shootout)
+
+
 def elo_pairs(elo: Tensor, mu: float = MU, slope: float = SLOPE, extra_time: float = EXTRA_TIME,
               shootout: float = SHOOTOUT, attack: Tensor | None = None,
-              defence: Tensor | None = None) -> tuple[Tensor, Tensor]:
-    """Tournament inputs for teams with Elo `elo` [T]: the score matrix of every pair
-    [T, T, G, G] (row team at home) and P(row team goes through a knockout tie) [T, T].
-    `attack` and `defence` [T] (log-rate offsets from team features, e.g. `players`): a side's
-    rate grows with its attack and falls with the other side's defence."""
-    rh, ra = elo_rates(elo[:, None], elo[None, :], mu, slope)
-    if attack is not None:
-        rh = rh * torch.exp(attack[:, None] - defence[None, :])
-        ra = ra * torch.exp(attack[None, :] - defence[:, None])
-    full = poisson(rh, ra)
-    return full, advance(full, poisson(rh * extra_time, ra * extra_time), shootout)
+              defence: Tensor | None = None, host: Tensor | None = None
+              ) -> tuple[Tensor, Tensor]:
+    """`pairs` of `pair_rates`: tournament inputs for teams with Elo `elo` [T]."""
+    return pairs(pair_rates(elo, mu, slope, attack, defence), extra_time, shootout, host)
 
 
-def poisson_nll(theta: Tensor, gap: Tensor, home: Tensor, goals_home: Tensor,
-                goals_away: Tensor, x_home: Tensor | None = None,
-                x_away: Tensor | None = None) -> Tensor:
-    """Per-match negative log-likelihood of both scores (constant log k! terms left out).
+def level(goals: float, expected: float, prior: float) -> float:
+    """Goal level of this tournament: the factor on every rate after `goals` were scored where
+    the model expected `expected`. Before kickoff it is 1; history counts as `prior` goals already
+    seen. Posterior mean of a Gamma(prior, prior) factor on Poisson goals."""
+    return (prior + goals) / (prior + expected)
+
+
+def fit_level(goals: Tensor, expected: Tensor) -> float:
+    """`prior` of `level` from past tournaments (goals scored and expected in each): the value
+    under which the totals are most likely (their likelihood is negative binomial)."""
+    y, e = torch.as_tensor(goals).double()[:, None], torch.as_tensor(expected).double()[:, None]
+    k = torch.logspace(0, 5, 501, dtype=torch.float64)
+    ll = (torch.lgamma(k + y) - torch.lgamma(k) + k * k.log() - (k + y) * (k + e).log()).sum(0)
+    return k[ll.argmax()].item()
+
+
+def expected_goals(theta: Tensor, gap: Tensor, home: Tensor, x_home: Tensor | None = None,
+                   x_away: Tensor | None = None) -> Tensor:
+    """[N, 2] goal rates of home and away:
 
     log rate home = log mu + slope * gap / 400 + home_term * home + x_home @ beta
     log rate away = log mu - slope * gap / 400 + x_away @ beta
@@ -101,7 +135,16 @@ def poisson_nll(theta: Tensor, gap: Tensor, home: Tensor, goals_home: Tensor,
     la = theta[0] - theta[1] * gap / 400
     if x_home is not None:
         lh, la = lh + x_home @ theta[3:], la + x_away @ theta[3:]
-    return lh.exp() - goals_home * lh + la.exp() - goals_away * la
+    return torch.stack([lh, la], -1).exp()
+
+
+def poisson_nll(theta: Tensor, gap: Tensor, home: Tensor, goals_home: Tensor,
+                goals_away: Tensor, x_home: Tensor | None = None,
+                x_away: Tensor | None = None) -> Tensor:
+    """Per-match negative log-likelihood of both scores at `expected_goals` (constant log k!
+    terms left out)."""
+    e = expected_goals(theta, gap, home, x_home, x_away)
+    return (e - torch.stack([goals_home, goals_away], -1) * e.log()).sum(-1)
 
 
 def fit_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: Tensor,
@@ -144,5 +187,5 @@ def fit_elo_poisson(gap: Tensor, home: Tensor, goals_home: Tensor, goals_away: T
     se = cov.diag().sqrt().tolist()
     mu = th[0].exp().item()
     out = {"mu": (mu, mu * se[0]), "slope": (th[1].item(), se[1]),
-           "home_term": (th[2].item(), se[2])}
+           "home": (th[2].item(), se[2])}
     return out | {n: (th[3 + i].item(), se[3 + i]) for i, n in enumerate(names or [])}

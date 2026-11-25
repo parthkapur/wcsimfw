@@ -12,9 +12,10 @@ Time rule: the season used is the one labelled the year before the tournament (i
 before kickoff, also for calendar-year leagues); form matches are dated before kickoff; the SoFIFA
 roster is the newest dated before kickoff and at most 400 days older.
 
-Outputs (`$WCSIMFW_DATA/processed/players/`, Parquet + manifest.json):
+Outputs (`$WCSIMFW_DATA/processed/players-v2/`, Parquet + manifest.json):
 - `players`: tournament, kickoff, team, player_id, name, birth, position, minutes, rating
-  (minutes-weighted season match rating), top_minutes (minutes in the five big leagues and the
+  (minutes-weighted season match rating; null for tournaments without player statistics),
+  top_minutes (minutes in the five big leagues and the
   Champions League), sofifa (overall, joined on nationality, age and name; null if not found).
 - `form`: tournament, player_id, date, minutes, rating, league_id (club matches before kickoff).
 - `matches`: tournament, date, home, away, goals after 90 minutes (final tournament only).
@@ -22,6 +23,7 @@ Outputs (`$WCSIMFW_DATA/processed/players/`, Parquet + manifest.json):
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import unicodedata
@@ -33,17 +35,23 @@ import polars as pl
 
 from wcsimfw import data, elo
 
-# SoFIFA roster version -> date the vendor shows for it.
-SOFIFA = {"180076": "2018-06-11", "230006": "2022-11-16", "240043": "2024-06-12",
-          "260037": "2026-06-10"}
-TOURNAMENTS = ("euro2016", "copa2016", "wc2018", "copa2019", "euro2020", "wc2022", "euro2024",
-               "copa2024", "wc2026")
+ARTIFACT = "players-v2"  # new version when the tables change
+# SoFIFA roster -> date the vendor shows for it.
+SOFIFA = {"eafc/fifa10.csv": "2010-02-22", "eafc/fifa14.csv": "2014-06-06",
+          **{f"sofifa/acquisition_2026-10-02/{v}/id-asc/records.jsonl": d for v, d in
+             (("180076", "2018-06-11"), ("230006", "2022-11-16"), ("240043", "2024-06-12"),
+              ("260037", "2026-06-10"))}}
+TOURNAMENTS = ("wc2010", "wc2014", "euro2016", "copa2016", "wc2018", "copa2019", "afcon2019",
+               "euro2020", "wc2022", "goldcup2023", "euro2024", "copa2024", "goldcup2025",
+               "wc2026")
 TOP = {39, 140, 135, 78, 61, 2}  # Premier League, LaLiga, Serie A, Bundesliga, Ligue 1, UCL
 # API-Football team names -> reference names (after elo.ALIAS).
 ALIAS = {"Bosnia & Herzegovina": "Bosnia and Herzegovina", "Rep. Of Ireland": "Republic of Ireland",
          "FYR Macedonia": "North Macedonia", "Iran": "IR Iran", "USA": "USA",
          "Cape Verde Islands": "Cabo Verde", "Curacao": "Curaçao", "United States": "USA",
-         "Turkiye": "Türkiye", "Ireland": "Republic of Ireland"}
+         "Turkiye": "Türkiye", "Ireland": "Republic of Ireland",
+         "Trinidad & Tobago": "Trinidad and Tobago",
+         "St. Kitts and Nevis": "Saint Kitts and Nevis"}
 
 
 def latest(before: str) -> str | None:
@@ -70,9 +78,12 @@ def _folders(raw: Path, t: str) -> tuple[Path, Path, Path]:
 
 def _fixtures(raw: Path, t: str) -> list[dict]:
     fx = _read(raw / f"apifootball/historical/{t}/fixtures.json")
-    start = min(f["fixture"]["date"][:10] for f in fx if f["league"]["round"].startswith("Group"))
-    return [f for f in fx if f["fixture"]["date"][:10] >= start
-            and f["score"]["fulltime"]["home"] is not None]
+    done = sorted((f for f in fx if f["score"]["fulltime"]["home"] is not None
+                   and f["league"]["round"].lower().find("qualif") < 0),
+                  key=lambda f: f["fixture"]["date"])
+    days = [date.fromisoformat(f["fixture"]["date"][:10]) for f in done]
+    start = max([i for i in range(1, len(days)) if (days[i] - days[i - 1]).days > 60], default=0)
+    return done[start:]  # the final tournament: after the last break of 60 days
 
 
 def _norm(s: str) -> str:
@@ -80,27 +91,35 @@ def _norm(s: str) -> str:
     return " ".join(s.replace("-", " ").replace(".", " ").split())
 
 
+def _iso(text: str | None) -> str | None:
+    """A vendor date as YYYY-MM-DD ("1980-5-8" too); None if it is not a date."""
+    try:
+        return date(*map(int, text.split("-"))).isoformat()
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
 def _sofifa(raw: Path, kickoff: str) -> dict[str, list[dict]] | None:
     v = latest(kickoff)
     if v is None or (date.fromisoformat(kickoff) - date.fromisoformat(SOFIFA[v])).days > 400:
         return None
     out: dict[str, list[dict]] = {}
-    path = raw / f"sofifa/acquisition_2026-10-02/{v}/id-asc/records.jsonl"
-    for line in path.read_text(encoding="utf-8").splitlines():
-        r = json.loads(line)
+    with open(raw / v, encoding="utf-8") as f:
+        rows = list(csv.DictReader(f)) if v.endswith("csv") else [json.loads(x) for x in f]
+    for r in rows:
         out.setdefault(team(r["nationality_name"]), []).append(
             {"name": _norm(r["long_name"]), "short": _norm(r["short_name"]),
              "age": int(r["age"]), "overall": overall(r["overall"]),
-             "date": SOFIFA[v]})
+             "keeper": "GK" in r["player_positions"], "date": SOFIFA[v]})
     return out
 
 
-def _match_sofifa(p: dict, cands: list[dict]) -> int | None:
-    """Overall of the SoFIFA player with the same age (±1) whose name is closest; None if no
-    name is close enough (ratio >= 0.6)."""
+def _match_sofifa(p: dict, cands: list[dict]) -> dict | None:
+    """The SoFIFA player with the same age (±1) whose name is closest; None if no name is close
+    enough (ratio >= 0.6; without a birth date the name alone decides, ratio >= 0.75)."""
     birth = p["birth"]
     names = {_norm(p["name"]), _norm(f"{p['firstname']} {p['lastname']}")}
-    best, score = None, 0.6
+    best, score = None, 0.6 if birth else 0.75
     for c in cands:
         if birth:
             age = (date.fromisoformat(c["date"]) - date.fromisoformat(birth)).days // 365
@@ -108,7 +127,7 @@ def _match_sofifa(p: dict, cands: list[dict]) -> int | None:
                 continue
         s = max(SequenceMatcher(None, a, b).ratio() for a in names for b in (c["name"], c["short"]))
         if s > score:
-            best, score = c["overall"], s
+            best, score = c, s
     return best
 
 
@@ -117,9 +136,9 @@ def build(raw: Path | None = None, out: Path | None = None) -> Path:
         pats = [f"raw/apifootball/{'' if t == 'wc2026' else f'historical/{t}/'}{d}/*"
                 for t in TOURNAMENTS for d in ("squads", "players", "player_form")]
         pats += [f"raw/apifootball/historical/{t}/fixtures.json" for t in TOURNAMENTS]
-        raw = data.fetch(pats + ["raw/sofifa/acquisition_2026-10-02/*/id-asc/records.jsonl",
-                                 "raw/international_results/*"]) / "raw"
-    out = out or data.data_dir() / "processed/players"
+        raw = data.fetch(pats + [f"raw/{v}" for v in SOFIFA]
+                         + ["raw/international_results/*"]) / "raw"
+    out = out or data.data_dir() / "processed" / ARTIFACT
     out.mkdir(parents=True, exist_ok=True)
     players, form, matches = [], [], []
     for t in TOURNAMENTS:
@@ -144,16 +163,19 @@ def build(raw: Path | None = None, out: Path | None = None) -> Path:
                 mins = sum(s["games"]["minutes"] for s in stats)
                 rm = sum(s["games"]["minutes"] for s in rated)
                 row = {"tournament": t, "kickoff": kickoff, "team": name, "player_id": p["id"],
-                       "name": p["name"], "birth": (info.get("birth") or {}).get("date"),
+                       "name": p["name"], "birth": _iso((info.get("birth") or {}).get("date")),
                        "position": p["position"], "minutes": mins,
                        "rating": sum(s["games"]["minutes"] * float(s["games"]["rating"])
                                      for s in rated) / rm if rm else None,
                        "top_minutes": sum(s["games"]["minutes"] for s in stats
                                           if s["league"]["id"] in TOP)}
-                row["sofifa"] = _match_sofifa(
+                hit = _match_sofifa(
                     {"name": p["name"], "firstname": info.get("firstname", ""),
                      "lastname": info.get("lastname", ""), "birth": row["birth"]},
                     sofifa.get(name, [])) if sofifa else None
+                row["sofifa"] = hit["overall"] if hit else None
+                if hit and row["position"] in (None, "Unknown"):
+                    row["position"] = "Goalkeeper" if hit["keeper"] else "Outfield"
                 players.append(row)
                 fp = fm_dir / f"{p['id']}.json"
                 if fp.exists():
@@ -180,11 +202,8 @@ def build(raw: Path | None = None, out: Path | None = None) -> Path:
 
 
 def load(name: str) -> pl.DataFrame:
-    """One output table, built first if missing."""
-    path = data.data_dir() / "processed/players" / f"{name}.parquet"
-    if not path.exists():
-        build()
-    return pl.read_parquet(path)
+    """One output table (local, else from the dataset, else built)."""
+    return pl.read_parquet(data.processed(ARTIFACT, build) / f"{name}.parquet")
 
 
 if __name__ == "__main__":

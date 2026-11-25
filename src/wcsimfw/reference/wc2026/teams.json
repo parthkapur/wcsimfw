@@ -27,6 +27,31 @@
   "Mexico",
   "USA"
  ],
+ "host_cities": {
+  "Canada": [
+   "Toronto",
+   "Vancouver"
+  ],
+  "Mexico": [
+   "Guadalupe",
+   "Mexico City",
+   "Zapopan"
+  ],
+  "USA": [
+   "Arlington",
+   "Atlanta",
+   "Dallas",
+   "East Rutherford",
+   "Foxborough",
+   "Houston",
+   "Inglewood",
+   "Kansas City",
+   "Miami Gardens",
+   "Philadelphia",
+   "Santa Clara",
+   "Seattle"
+  ]
+ },
  "teams": {
   "Algeria": {
    "group": "J",

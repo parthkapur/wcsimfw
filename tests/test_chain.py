@@ -49,17 +49,38 @@ def test_pairs_equal_sides_and_symmetry():
     assert adv[1, 0] > 0.5 > adv[0, 1] and adv[0, 1] + adv[1, 0] == pytest.approx(1)
 
 
-def test_touches_split_possessions_and_stop_at_shot():
+def test_touches_split_possessions():
+    # A builds and shoots; A keeps the rebound with two touches, B has one touch (a block) and A
+    # goes on; B takes the ball with two touches; A's own goal (marked as a shot) is no touch.
     e = pl.DataFrame({
-        "match_id": [1] * 7, "period": ["FirstHalf"] * 7,
-        "team": ["A", "A", "A", "B", "B", "B", "A"],
-        "x": [10.0, 50.0, 90.0, 20.0, 80.0, 85.0, 30.0],
-        "is_touch": [True] * 7, "is_shot": [False, False, True, False, False, False, False],
-        "is_goal": [False, False, True, False, False, False, False]})
+        "match_id": [1] * 11, "period": ["FirstHalf"] * 11, "team": list("AAAAABAABBA"),
+        "x": [10.0, 50.0, 90.0, 70.0, 60.0, 30.0, 75.0, 80.0, 20.0, 40.0, 5.0],
+        "is_touch": [True] * 11, "is_shot": [False, False, True] + [False] * 7 + [True],
+        "is_goal": [False] * 10 + [True], "own_goal": [None] * 10 + [True]})
     t = possessions.touches(e)
-    assert t["state"].to_list() == ["B", "M", "S", "B", "F", "F", "B"]
-    assert t["to"].to_list() == ["M", "S", "goal", "F", "F", "loss", "loss"]
+    assert "".join(t["team"]) == "AAAAAAABB"
+    assert t["state"].to_list() == ["B", "M", "S", "F", "M", "F", "F", "B", "M"]
+    assert t["to"].to_list() == ["M", "S", "miss", "M", "F", "F", "loss", "M", "loss"]
     assert t["poss"].n_unique() == 3
+
+
+def test_style_pulls_toward_the_rating():
+    theta = torch.zeros(chain.SIZE, dtype=torch.float64)
+    matches = pl.DataFrame({"match_id": [1], "home": ["A"], "away": ["B"], "gap": [0.0]})
+    moves = pl.DataFrame({"match_id": [1, 1], "team": ["A", "B"], "from": ["M", "M"],
+                          "to": ["F", "loss"], "n": [100, 100]})
+    starts = pl.DataFrame([{"match_id": 1, "team": t, "state": z, "n": 25}
+                           for t in "AB" for z in chain.FIRST])
+    s = chain.style(theta, moves, starts, matches, ["A", "B", "C"], prior=1.0)
+    m = chain.ZONES.index("M")
+    # expected 100 / 5 = 20 moves to F, seen 100, prior worth one match (100): (100+100)/(100+20)
+    assert s["move_for"][0, m, 2].item() == pytest.approx(200 / 120)
+    assert s["move_against"][1, m, 2].item() == pytest.approx(200 / 120)
+    assert (s["move_for"][2] == 1).all() and (s["first_against"][2] == 1).all()
+    elo = torch.tensor([1800.0, 1800.0, 1800.0], dtype=torch.float64)
+    r = chain.rates(elo, theta, 4.0, style=s)
+    plain = chain.rates(elo, theta, 4.0)
+    assert r[0, 2] > plain[0, 2] and r[2, 2] == pytest.approx(plain[2, 2].item())
 
 
 def test_chain_config_rules():
@@ -67,5 +88,8 @@ def test_chain_config_rules():
     run.check({"model": {"name": "possession_chain", "elo": "history", "params": {"chain": fit}}})
     with pytest.raises(ValueError, match="history"):
         run.check({"model": {"name": "possession_chain", "params": {"chain": fit}}})
-    with pytest.raises(ValueError, match="possession_chain"):
+    with pytest.raises(ValueError, match="no param"):
         run.check({"model": {"name": "elo_poisson", "params": {"chain": fit}}})
+    with pytest.raises(ValueError, match="cannot be fitted"):
+        run.check({"model": {"name": "possession_chain", "elo": "history",
+                             "params": {"chain": fit, "style": fit}}})

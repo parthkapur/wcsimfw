@@ -5,7 +5,8 @@ the competition's rules, the qualifiers are placed in the bracket, and each knoc
 90 minutes, in extra time or on penalties; matches already played keep their real result.
 Pipeline place: tournament (match -> tournament -> evaluation). Inputs are a score matrix for
 every pair of teams `[T, T, G, G]` and the knockout matrix `[T, T]` (P(row team goes through
-against column team)), both from a match model.
+against column team)), both from a match model. With a leading axis of places (neutral ground,
+then one per host country, in the order of `Tournament.hosts`) each match uses its own place.
 Numbers: nothing is fitted. The format (groups, ranking criteria, bracket, FIFA Annexe C) comes
 from the reference data. Team conduct (cards) is not simulated; the FIFA ranking release named
 `tiebreak` in the reference data decides any tie that reaches it.
@@ -41,7 +42,10 @@ class Tournament:
     bracket: dict[int, tuple[str, str]]  # match number -> two refs ("1E", "3ABCDF", "W74")
     annex: Tensor  # [4096, n winners]: group of the third that meets each listed winner
     annex_winners: str
-    results: list[dict]
+    results: list[dict]  # with `country`: the host country the match is played in
+    hosts: list[str]
+    fixture_place: Tensor  # [M] place of each group match: 1 + index in hosts
+    place: dict[int, int]  # match number -> place, knockout matches
 
     @classmethod
     def load(cls, name: str = "wc2026") -> Tournament:
@@ -55,13 +59,18 @@ class Tournament:
         for key, row in fmt["annex_c"].items():
             mask = sum(1 << groups.index(g) for g in key)
             annex[mask] = torch.tensor([groups.index(row[w]) for w in winners])
-        group = [m for m in res["matches"] if m["stage"] == "group"]
+        country = {c: h for h, cities in tm["host_cities"].items() for c in cities}
+        results = [m | {"country": country[m["city"]]} for m in res["matches"]]
+        group = [m for m in results if m["stage"] == "group"]
+        place = {h: 1 + i for i, h in enumerate(tm["hosts"])}
         return cls(
             teams=teams, groups=groups,
             fixtures=torch.tensor([[idx[m["home"]], idx[m["away"]]] for m in group]),
             fifa_rank=torch.tensor([ranks[t]["rank"] for t in teams]),
             bracket={int(k): tuple(v) for k, v in fmt["knockout"].items() if int(k) != 103},
-            annex=annex, annex_winners=winners, results=res["matches"],
+            annex=annex, annex_winners=winners, results=results, hosts=tm["hosts"],
+            fixture_place=torch.tensor([place[m["country"]] for m in group]),
+            place={m["match"]: place[m["country"]] for m in results if m["stage"] != "group"},
         )
 
     def played(self, after: str | None) -> list[dict]:
@@ -87,6 +96,14 @@ class Tournament:
         return goals, wins
 
 
+    def host_bonus(self, bonus: float) -> Tensor:
+        """[1 + hosts, T] log-rate bonus of a host nation in its own country (`match.pairs`)."""
+        out = torch.zeros(1 + len(self.hosts), len(self.teams), dtype=torch.float64)
+        for i, h in enumerate(self.hosts):
+            out[1 + i, self.teams.index(h)] = bonus
+        return out
+
+
 def _stage(m: dict) -> str:
     return f"md{m['matchday']}" if m["stage"] == "group" else m["stage"]
 
@@ -103,7 +120,8 @@ def play_groups(t: Tournament, matrix: Tensor, n: int, gen: torch.Generator,
                 held: dict[int, tuple[int, int]] | None = None) -> Tensor:
     """[n, M, 2] goals of every group match; held matches keep their real score."""
     f = t.fixtures.to(matrix.device)
-    p = matrix[f[:, 0], f[:, 1]].flatten(-2)  # [M, G*G]
+    at = (t.fixture_place.to(matrix.device),) if matrix.dim() == 5 else ()
+    p = matrix[(*at, f[:, 0], f[:, 1])].flatten(-2)  # [M, G*G]
     draw = torch.multinomial(p, n, replacement=True, generator=gen).T  # [n, M]
     goals = torch.stack([draw // matrix.shape[-1], draw % matrix.shape[-1]], -1)
     for i, g in (held or {}).items():
@@ -161,6 +179,11 @@ def line_up(t: Tournament, pos: Tensor, mask: Tensor) -> Tensor:
     return torch.stack(cols, -1)
 
 
+def _adv(t: Tournament, adv: Tensor, m: int) -> Tensor:
+    """[T, T] P(row team goes through) at the place of knockout match m."""
+    return adv[t.place[m]] if adv.dim() == 3 else adv
+
+
 def _bracket_order(t: Tournament):
     return [(m, t.bracket[m]) for r in ("r16", "qf", "sf", "final") for m in _ROUND[r]]
 
@@ -186,7 +209,7 @@ def knockout_mc(t: Tournament, lineup: Tensor, adv: Tensor, gen: torch.Generator
 
     def play(m, a, b, stage):
         u = torch.rand(n, generator=gen, device=dev)
-        w = _hold(torch.where(u < adv[a, b], a, b), a, b, m, wins)
+        w = _hold(torch.where(u < _adv(t, adv, m)[a, b], a, b), a, b, m, wins)
         team[m] = w
         reach[rows, w, stage] = True
 
@@ -211,7 +234,8 @@ def knockout_exact(t: Tournament, lineup: Tensor, adv: Tensor,
     dist = {}
 
     def play(m, p, q, stage):
-        w = p * (q @ adv.T) + q * (p @ adv.T)
+        x = _adv(t, adv, m).T
+        w = p * (q @ x) + q * (p @ x)
         if m in wins:
             if not (p[:, wins[m]] + q[:, wins[m]] > 0.999).all():
                 raise ValueError(f"held winner of match {m} is not in that match")

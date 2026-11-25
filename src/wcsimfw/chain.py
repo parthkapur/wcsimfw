@@ -13,7 +13,14 @@ Numbers: fitted, by maximum likelihood on the counted moves of earlier tournamen
   shots (own goals are goals too); both measured on the same matches (`constants`).
 P(goal | possession) comes from the fundamental matrix (I - Q)^-1 of the absorbing chain (the
 expected visits to each zone); the goal rate is n * own_goals * P(goal | possession), Poisson.
-Nothing is set by hand except the zone borders (thirds of the pitch).
+- `home`: log factor on the goals of a side at home, from the same matches (`residuals`).
+Set by hand: the zone borders (thirds of the pitch) and `prior` of `style`.
+
+Team style (`style`): a side plays as its rating says until its own matches show otherwise. Per
+zone and next step, its counted moves O are compared with the moves E the chain expected in the
+same matches; the factor (K + O) / (K + E) is the posterior mean of a Gamma(K, K) factor on
+Poisson counts, with K worth `prior` matches. It is measured for a side's own moves and for the
+moves it allows. Finishing (goal per shot) has no team factor: past finishing does not predict.
 """
 
 from __future__ import annotations
@@ -58,12 +65,18 @@ def probabilities(theta: Tensor, gap: Tensor) -> dict[str, Tensor]:
     return {"move": move, "goal": goal, "first": first}
 
 
-def goal_per_possession(theta: Tensor, gap: Tensor) -> Tensor:
-    """P(a possession ends in a goal) for a side `gap` Elo points above its opponent."""
+def goal_per_possession(theta: Tensor, gap: Tensor, style: dict[str, Tensor] | None = None
+                        ) -> Tensor:
+    """P(a possession ends in a goal) for a side `gap` Elo points above its opponent. With
+    `style`, `gap` is [T, T] (row team against column team, in the order of the style)."""
     p = probabilities(theta, gap)
+    if style is not None:
+        for k in ("first", "move"):
+            x = p[k] * style[f"{k}_for"][:, None] * style[f"{k}_against"][None, :]
+            p[k] = x / x.sum(-1, keepdim=True)
     q = p["move"][..., :3]
     shoot = p["move"][..., 3] * p["goal"][..., None]
-    eye = torch.eye(3, dtype=q.dtype)
+    eye = torch.eye(3, dtype=q.dtype, device=q.device)
     h = torch.linalg.solve(eye - q, shoot[..., None])[..., 0]  # P(goal | in each zone)
     return (p["first"][..., :3] * h).sum(-1) + p["first"][..., 3] * p["goal"]
 
@@ -129,13 +142,56 @@ def fit(moves: dict[str, Tensor], firsts: dict[str, Tensor]) -> tuple[Tensor, Te
     return th, torch.autograd.functional.hessian(lambda x: nll(x, moves, firsts), th).inverse()
 
 
-def pairs(elo: Tensor, theta: Tensor, n: float, own_goals: float = 1.0,
-          extra_time: float = match.EXTRA_TIME, shootout: float = match.SHOOTOUT
-          ) -> tuple[Tensor, Tensor]:
-    """Tournament inputs, like `match.elo_pairs`: score matrices [T, T, G, G] and P(row team
-    goes through) [T, T], with goal rates n * own_goals * P(goal | possession, gap)."""
+def style(theta: Tensor, moves: pl.DataFrame, starts: pl.DataFrame, matches: pl.DataFrame,
+          teams: list[str], prior: float) -> dict[str, Tensor]:
+    """Team factors (see module text) from the moves of `matches` (`players.with_elo` rows):
+    `first_for`, `first_against` [T, 4] and `move_for`, `move_against` [T, 3, 5]. A team without
+    matches gets 1."""
+    flip = {"home": "away", "away": "home"}
+    sides = pl.concat([matches.select(
+        "match_id", pl.col(a).alias("team"), pl.col(b).alias("other"),
+        (pl.col("gap") if a == "home" else -pl.col("gap")).alias("gap"))
+        for a, b in flip.items()]).with_row_index("side")
+    p = probabilities(theta, torch.tensor(sides["gap"].to_numpy()))
+    obs = {"first": torch.zeros_like(p["first"]), "move": torch.zeros_like(p["move"])}
+    key = ["match_id", "team"]
+    for r in starts.join(sides, on=key).iter_rows(named=True):
+        obs["first"][r["side"], FIRST.index(r["state"])] += r["n"]
+    for r in moves.filter(pl.col("from") != "S").join(sides, on=key).iter_rows(named=True):
+        obs["move"][r["side"], ZONES.index(r["from"]), NEXT.index(r["to"])] += r["n"]
+    out = {}
+    for k, o in obs.items():
+        total = o.sum(-1, keepdim=True)
+        weight = (prior * total.mean(0)).clamp_min(1e-9)
+        for name, col in (("for", "team"), ("against", "other")):
+            at = [teams.index(x) if x in teams else len(teams) for x in sides[col]]
+            so, se = (weight + torch.zeros(len(teams) + 1, *o.shape[1:], dtype=o.dtype).index_add(
+                0, torch.tensor(at, dtype=torch.long), x) for x in (o, total * p[k]))
+            out[f"{k}_{name}"] = (so / se)[:-1]
+    return out
+
+
+def residuals(theta: Tensor, matches: pl.DataFrame, scale: float) -> pl.DataFrame:
+    """`matches` with the goals the chain expects of each side (`e_home`, `e_away`), at the rate
+    `scale` (n * own_goals) per possession."""
+    gap = torch.tensor(matches["gap"].to_numpy())
+    return matches.with_columns(
+        pl.Series("e_home", (scale * goal_per_possession(theta, gap)).numpy()),
+        pl.Series("e_away", (scale * goal_per_possession(theta, -gap)).numpy()))
+
+
+def rates(elo: Tensor, theta: Tensor, n: float, own_goals: float = 1.0,
+          style: dict[str, Tensor] | None = None) -> Tensor:
+    """Goal rate [T, T] of the row team against the column team:
+    n * own_goals * P(goal | possession, gap, style)."""
     gap = elo[:, None] - elo[None, :]
-    rate = n * own_goals * goal_per_possession(theta.to(elo), gap)
-    rh, ra = rate, rate.T
-    full = match.poisson(rh, ra)
-    return full, match.advance(full, match.poisson(rh * extra_time, ra * extra_time), shootout)
+    style = style and {k: v.to(elo) for k, v in style.items()}
+    return n * own_goals * goal_per_possession(theta.to(elo), gap, style)
+
+
+def pairs(elo: Tensor, theta: Tensor, n: float, own_goals: float = 1.0,
+          extra_time: float = match.EXTRA_TIME, shootout: float = match.SHOOTOUT,
+          style: dict[str, Tensor] | None = None, host: Tensor | None = None
+          ) -> tuple[Tensor, Tensor]:
+    """`match.pairs` of `rates`: tournament inputs, like `match.elo_pairs`."""
+    return match.pairs(rates(elo, theta, n, own_goals, style), extra_time, shootout, host)

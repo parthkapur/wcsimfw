@@ -71,12 +71,17 @@ def history(before: str) -> list[dict]:
 
 
 def tournament_matches(played: list[dict], competition: str = "FIFA World Cup") -> list[dict]:
-    """Reference results (Tournament.played) as history rows: goals after extra time.
-    ponytail: every match on neutral ground (hosts' home matches too); add HOME for hosts
-    if a host term enters the match model."""
-    return [{"date": m["date"], "home": m["home"], "away": m["away"],
-             "goals": tuple(m["goals_120"] or m["goals_90"]), "competition": competition,
-             "neutral": True} for m in played]
+    """Reference results (Tournament.played) as history rows: goals after extra time; a host
+    nation in its own country is the home side, everyone else plays on neutral ground."""
+    out = []
+    for m in played:
+        g = tuple(m["goals_120"] or m["goals_90"])
+        h, a = m["home"], m["away"]
+        if a == m.get("country"):
+            h, a, g = a, h, g[::-1]
+        out.append({"date": m["date"], "home": h, "away": a, "goals": g,
+                    "competition": competition, "neutral": h != m.get("country")})
+    return out
 
 
 def ratings(matches: list[dict], start: dict[str, float] | None = None) -> dict[str, float]:

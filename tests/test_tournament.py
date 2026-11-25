@@ -69,6 +69,21 @@ def test_monte_carlo_agrees_with_exact(after):
     assert out["exact_se"][:, 1:].sum() < out["mc_se"][:, 1:].sum()  # recursion: less noise
 
 
+def test_hosts_play_at_home():
+    for k, (h, a) in enumerate(T.fixtures.tolist()):
+        for team in (T.teams[h], T.teams[a]):
+            if team in T.hosts:  # every group match of a host nation is in its own country
+                assert T.fixture_place[k] == 1 + T.hosts.index(team)
+    assert T.place[79] == 1 + T.hosts.index("Mexico") and T.place[104] == 1 + T.hosts.index("USA")
+    zero, _ = match.elo_pairs(ELO, host=T.host_bonus(0.0)), None
+    plain = tournament.simulate(T, *match.elo_pairs(ELO), n=3000)["exact"]
+    assert torch.allclose(tournament.simulate(T, *zero, n=3000)["exact"], plain)
+    home = tournament.simulate(T, *match.elo_pairs(ELO, host=T.host_bonus(0.25)), n=3000)["exact"]
+    for h in T.hosts:
+        i = T.teams.index(h)
+        assert home[i, 0] > plain[i, 0] and home[i, 1] > plain[i, 1]
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="no CUDA device")
 def test_cuda_runs():
     full, adv = match.elo_pairs(ELO.cuda())

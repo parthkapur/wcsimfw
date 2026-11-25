@@ -16,13 +16,18 @@ Numbers: per player, nothing is fitted; the weights that turn features into goal
 - `halflife`: days; with "rating", rate from pre-tournament club form matches, each weighted by
   2^(-age / halflife) (recency). None = the season rating.
 The eleven: the goalkeeper and the ten outfield players with the most season minutes among
-those with a value (for "sofifa": the highest overall). Every feature is centred on the
-tournament's mean team, so it reads "better than the average side here".
+those with a value (for "sofifa": the highest overall); a side with fewer than eleven such
+players has no features. Every feature is centred on the tournament's mean team, so it reads
+"better than the average side here".
+
+Elo already knows most of it: good squads win matches. `residuals` keeps only what the rating
+does not say ("this squad is better than its results"), so the squad corrects the rating and
+cannot replace it; a side without features is as good as its rating says.
 """
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import polars as pl
 import torch
@@ -73,6 +78,7 @@ def team_features(players: pl.DataFrame, form: pl.DataFrame | None = None,
     """Per tournament and team: feature columns, centred. Without `split`: `q` (and `top`);
     with `split`: `att_q`, `def_q` (and `att_top`, `def_top`)."""
     xi = eleven(player_values(players, form, source, tau, halflife), source)
+    xi = xi.filter(pl.len().over("tournament", "team") == 11)
 
     def agg(df: pl.DataFrame, prefix: str) -> pl.DataFrame:
         cols = [pl.col("value").mean().alias(prefix + "q")]
@@ -84,8 +90,62 @@ def team_features(players: pl.DataFrame, form: pl.DataFrame | None = None,
         t = agg(xi.filter(~d), "att_").join(agg(xi.filter(d), "def_"), on=["tournament", "team"])
     else:
         t = agg(xi, "")
-    cols = [c for c in t.columns if c not in ("tournament", "team")]
-    return t.with_columns([(pl.col(c) - pl.col(c).mean().over("tournament")) for c in cols])
+    return t.with_columns([(pl.col(c) - pl.col(c).mean().over("tournament"))
+                           for c in _columns(t)])
+
+
+def _columns(features: pl.DataFrame) -> list[str]:
+    return [c for c in features.columns if c not in ("tournament", "team")]
+
+
+def residuals(features: pl.DataFrame, kickoff: dict[str, str], history: list[dict],
+              use: list[str]) -> pl.DataFrame:
+    """Features less what each side's rating at kickoff predicts of them: a straight line through
+    the (centred) ratings, measured on the tournaments `use`."""
+    ratings: dict[str, float] = {}
+    at = {}
+    todo = sorted(kickoff, key=kickoff.get)
+    for h in [*history, {"date": "9999"}]:
+        while todo and h["date"] >= kickoff[todo[0]]:
+            at[todo.pop(0)] = dict(ratings)
+        if todo:
+            elo.update(ratings, h)
+    f = features.with_columns(pl.Series("elo", [
+        at[t].get(x, elo.START) for t, x in features.select("tournament", "team").iter_rows()]))
+    f = f.with_columns(pl.col("elo") - pl.col("elo").mean().over("tournament"))
+    fit = f.filter(pl.col("tournament").is_in(use))
+    slope = {c: (fit[c] * fit["elo"]).sum() / max((fit["elo"] ** 2).sum(), 1e-9)
+             for c in _columns(features)}
+    return f.with_columns([pl.col(c) - slope[c] * pl.col("elo") for c in slope]).drop("elo")
+
+
+def covariates(rows: list[dict], features: pl.DataFrame, matches: pl.DataFrame
+               ) -> tuple[torch.Tensor, torch.Tensor, list[str], list[str | None]]:
+    """(x_home, x_away) [N, K] for `match.fit_poisson` on history matches `rows` (date, home,
+    away): own - opponent for every feature, zero where a side has none; a feature named def_*
+    counts for the side it belongs to when it defends. Also the feature names and, per row, the
+    tournament of `matches` (processed `players` table) it belongs to, else None."""
+    names = _columns(features)
+    k = [n.startswith("def_") for n in names]
+    table = {(t, x): v for t, x, *v in features.select("tournament", "team", *names).iter_rows()}
+    none = [0.0] * len(names)
+    span = [(t, *(date.fromisoformat(d) for d in (a, b)), set(h) | set(w)) for t, a, b, h, w in
+            matches.group_by("tournament").agg(
+                pl.col("date").min().alias("a"), pl.col("date").max().alias("b"),
+                pl.col("home"), pl.col("away")).iter_rows()]
+    xh, xa, tour = [], [], []
+    for r in rows:
+        day = date.fromisoformat(r["date"])
+        t = next((t for t, a, b, teams in span if a - timedelta(1) <= day <= b + timedelta(1)
+                  and r["home"] in teams and r["away"] in teams), None)
+        h, a = table.get((t, r["home"]), none), table.get((t, r["away"]), none)
+        xh.append([(-y if d else x) if any(k) else x - y
+                   for x, y, d in zip(h, a, k, strict=True)])
+        xa.append([(-x if d else y) if any(k) else y - x
+                   for x, y, d in zip(h, a, k, strict=True)])
+        tour.append(t)
+    as_t = [torch.tensor(x, dtype=torch.float64).reshape(len(rows), len(names)) for x in (xh, xa)]
+    return *as_t, names, tour
 
 
 def with_elo(matches: pl.DataFrame) -> pl.DataFrame:
@@ -109,34 +169,3 @@ def with_elo(matches: pl.DataFrame) -> pl.DataFrame:
                 out.append(m | {"home": h["home"], "away": h["away"], "goals_home": g[0],
                                 "goals_away": g[1], "gap": gap, "at_home": not h["neutral"]})
     return pl.DataFrame(out)
-
-
-def design(table: pl.DataFrame, features: pl.DataFrame | None = None
-           ) -> tuple[pl.DataFrame, dict[str, torch.Tensor], list[str]]:
-    """Fit inputs for `match.fit_poisson` from `with_elo` matches and `team_features`. Without
-    `split`, each rate gets own - opponent for every feature; with `split`, a rate gets the
-    scoring side's attack features and minus the other side's defence features. Returns the
-    matches kept (both teams have features), the tensors and the feature names."""
-    t, names, xh, xa = table, [], None, None
-    if features is not None:
-        cols = [c for c in features.columns if c not in ("tournament", "team")]
-        for side in ("home", "away"):
-            f = features.rename({c: f"{side}_{c}" for c in cols} | {"team": side})
-            t = t.join(f, on=["tournament", side], how="inner")
-        att = [c for c in cols if not c.startswith("def_")]
-        dfn = [c for c in cols if c.startswith("def_")]
-
-        def col(name):
-            return torch.tensor(t[name].to_numpy(), dtype=torch.float64)
-
-        if dfn:
-            xh = torch.stack([col(f"home_{c}") for c in att] + [-col(f"away_{c}") for c in dfn], 1)
-            xa = torch.stack([col(f"away_{c}") for c in att] + [-col(f"home_{c}") for c in dfn], 1)
-        else:
-            xh = torch.stack([col(f"home_{c}") - col(f"away_{c}") for c in att], 1)
-            xa = -xh
-        names = att + dfn
-    x = {k: torch.tensor(t[c].cast(pl.Float64).to_numpy(), dtype=torch.float64) for k, c in
-         (("gap", "gap"), ("home", "at_home"), ("goals_home", "goals_home"),
-          ("goals_away", "goals_away"))}
-    return t, x | {"x_home": xh, "x_away": xa}, names

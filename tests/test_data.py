@@ -41,3 +41,17 @@ def test_fetch_passes_pin(monkeypatch, tmp_path):
 def test_data_dir_default(monkeypatch):
     monkeypatch.delenv("WCSIMFW_DATA", raising=False)
     assert data.data_dir() == Path.home() / ".cache" / "wcsimfw"
+
+
+def test_processed_prefers_local_then_dataset_then_builds(monkeypatch, tmp_path):
+    monkeypatch.setenv("WCSIMFW_DATA", str(tmp_path))
+    monkeypatch.setattr(data, "fetch", lambda patterns: tmp_path / "snap")
+    built = []
+    local, remote = tmp_path / "processed/x-v1", tmp_path / "snap/processed/x-v1"
+    assert data.processed("x-v1", lambda out: built.append(out)) == local and built == [local]
+    remote.mkdir(parents=True)
+    (remote / "manifest.json").write_text("{}")
+    assert data.processed("x-v1", built.append) == remote
+    local.mkdir(parents=True)
+    (local / "manifest.json").write_text("{}")
+    assert data.processed("x-v1", built.append) == local and len(built) == 1

@@ -59,6 +59,7 @@ def targets(t: Tournament, after: str | None) -> list[dict]:
         if k > last and (m["stage"] == "group" or k == last + 1):
             h, a = m["goals_90"]
             out.append({"stage": stage, "home": idx[m["home"]], "away": idx[m["away"]],
+                        "place": 1 + t.hosts.index(m["country"]),
                         "result": 0 if h > a else 1 if h == a else 2})
     return out
 
@@ -107,7 +108,8 @@ def evaluate(t: Tournament, full: Tensor, adv: Tensor, after: str | None = None,
     # ponytail: delta method, covariance between teams ignored; a bootstrap over draws if needed
     stage_se = ((2 * (p - truth) / p.numel() * se) ** 2).sum().sqrt()
     games = targets(t, after)
-    pm = outcome(full[[g["home"] for g in games], [g["away"] for g in games]])
+    keys = (*(("place",) if full.dim() == 5 else ()), "home", "away")
+    pm = outcome(full[tuple([g[k] for g in games] for k in keys)])
     y = torch.tensor([g["result"] for g in games], device=pm.device)
     per = match_scores(pm, y)
     team = stage_rps(p, truth)
